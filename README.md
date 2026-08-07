@@ -6,15 +6,35 @@ with structured answers agents can consume by reading files. Zero npm dependenci
 step. (2026-08-07)
 
 - **Design spec:** `docs\2026-08-07-agent-inbox-design.md`
-- **Agent-facing contract:** `protocol\PROTOCOL.md` (synced to the data store on boot)
-- **Data store:** `C:\Users\you\.agent-inbox` (created and seeded on first boot)
+- **Agent-facing contract:** `protocol\PROTOCOL.md` (`{{DATA_DIR}}` tokens rendered and
+  synced into the data store on boot)
+- **Data store:** `<home>\.agent-inbox` (e.g. `C:\Users\you\.agent-inbox`; created and
+  seeded on first boot — data stays local and is never part of this repo)
+
+## Setting up a new machine (golden path)
+
+```
+git clone https://github.com/joooooooooooe/agent-inbox     (any location works)
+cd agent-inbox
+node setup.js
+```
+
+`node setup.js` (zero dependencies, idempotent, safe to re-run) does three things:
+1. creates and seeds the data store at `<home>\.agent-inbox`, with `PROTOCOL.md` rendered
+   for this machine's paths;
+2. installs the Claude skill **machine-wide** at `<home>\.claude\skills\agent-inbox\SKILL.md`
+   (rendered the same way — Claude Code then picks it up in every project on the machine);
+3. prints next steps.
+
+Then register this machine's projects in `<home>\.agent-inbox\projects.json` (see
+"Register a project"), paste the AGENTS.md snippet from `PROTOCOL.md` section 5 into each
+Codex-driven repo (Codex doesn't read Claude skills), and run `start-inbox.cmd`.
 
 ## Run
 
-Double-click `start-inbox.cmd`, or:
+Double-click `start-inbox.cmd`, or from the repo folder:
 
 ```
-cd C:\Users\you\AgentInbox
 node server.js
 ```
 
@@ -30,7 +50,7 @@ Environment overrides:
 ## How it works
 
 **The file protocol is the contract; the app is a viewer/editor.** Agents file requests by
-writing one JSON file each into `C:\Users\you\.agent-inbox\requests\`; Joe answers in the
+writing one JSON file each into `<home>\.agent-inbox\requests\`; Joe answers in the
 app; the answer is embedded back into the same JSON file, and a per-project markdown digest
 is regenerated at `answers\<slug>.md` (and optionally mirrored into the project's repo). No
 server needs to be running for an agent to file or read.
@@ -50,7 +70,7 @@ be archived from the UI into `requests\archive\` without affecting digest conten
 
 ## Register a project
 
-Hand-edit `C:\Users\you\.agent-inbox\projects.json`:
+Hand-edit `<home>\.agent-inbox\projects.json` (example from Joe's machine):
 
 ```json
 {
@@ -83,8 +103,9 @@ answers from the digest (or in-repo mirror).
 
 ## Tests
 
+From the repo folder:
+
 ```
-cd C:\Users\you\AgentInbox
 node --test test/
 ```
 
@@ -100,7 +121,7 @@ against temp directories — it never touches the real data store.
 4. **Actions:** *New…* → *Start a program*:
    - Program/script: `C:\Program Files\nodejs\node.exe`
    - Arguments: `server.js`
-   - Start in: `C:\Users\you\AgentInbox`
+   - Start in: your clone folder (e.g. `C:\Users\you\AgentInbox`)
 5. **Conditions:** untick *Start the task only if the computer is on AC power*.
 6. OK to save. The inbox will be at <http://127.0.0.1:7717> after every logon; open it (or
    run `start-inbox.cmd`, which reuses the port and just opens the browser tab — note it

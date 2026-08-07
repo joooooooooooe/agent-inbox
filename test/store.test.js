@@ -99,6 +99,31 @@ test('ensureStore seeds dirs, projects.json and syncs PROTOCOL.md', () => {
   assert.deepEqual(noTmpResidue(dataDir), []);
 });
 
+test('ensureStore renders {{DATA_DIR}} tokens in PROTOCOL.md for this machine', () => {
+  const dataDir = path.join(makeTmp(), 'store');
+  const protoSrc = path.join(makeTmp(), 'PROTOCOL.md');
+  fs.writeFileSync(protoSrc,
+    '# protocol\nFile requests in `{{DATA_DIR}}\\requests\\`.\nRegistry: {{DATA_DIR}}\\projects.json\n',
+    'utf8');
+
+  const first = store.ensureStore(dataDir, protoSrc);
+  assert.equal(first.protocolSynced, true);
+  const synced = fs.readFileSync(path.join(dataDir, 'PROTOCOL.md'), 'utf8');
+  assert.ok(!synced.includes('{{DATA_DIR}}'), 'no unrendered tokens may remain');
+  assert.ok(synced.includes(`${dataDir}\\requests\\`), 'token became the real data dir');
+  assert.ok(synced.includes(`${dataDir}\\projects.json`));
+
+  // Idempotent per machine: rendered copy is already current on the next boot.
+  const second = store.ensureStore(dataDir, protoSrc);
+  assert.equal(second.protocolSynced, false);
+
+  // Tampered copy is still re-rendered from the repo source.
+  fs.writeFileSync(path.join(dataDir, 'PROTOCOL.md'), 'tampered', 'utf8');
+  const third = store.ensureStore(dataDir, protoSrc);
+  assert.equal(third.protocolSynced, true);
+  assert.equal(fs.readFileSync(path.join(dataDir, 'PROTOCOL.md'), 'utf8'), synced);
+});
+
 test('ensureStore regenerates digests for all projects on boot', () => {
   const dataDir = makeTmp();
   store.ensureStore(dataDir, null);

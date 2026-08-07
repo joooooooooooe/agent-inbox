@@ -1,7 +1,7 @@
 # Agent Inbox — File Protocol (schema_version 1)
 
-Last updated: 2026-08-07. Canonical source: `C:\Users\you\AgentInbox\protocol\PROTOCOL.md`
-(synced into `C:\Users\you\.agent-inbox\PROTOCOL.md` on every server boot; the repo copy wins).
+Last updated: 2026-08-07. Canonical source: `protocol\PROTOCOL.md` in the agent-inbox repo
+(rendered and synced into `{{DATA_DIR}}\PROTOCOL.md` on every server boot; the repo copy wins).
 
 This is the contract for coding agents (Claude Code, Codex, etc.) that need a decision from
 Joe. **The file protocol is the contract; the app is only a viewer/editor.** You participate
@@ -12,13 +12,13 @@ a request or read an answer.
 
 | Thing | Path |
 |---|---|
-| Data store root | `C:\Users\you\.agent-inbox` |
-| This document (in the store) | `C:\Users\you\.agent-inbox\PROTOCOL.md` |
-| Requests (one JSON file each) | `C:\Users\you\.agent-inbox\requests\<id>.json` |
-| Archived requests (settled, filed away) | `C:\Users\you\.agent-inbox\requests\archive\<id>.json` |
-| Answered digests (per project, newest 50) | `C:\Users\you\.agent-inbox\answers\<slug>.md` |
-| Digest archive (entries older than the 50) | `C:\Users\you\.agent-inbox\answers\<slug>-archive.md` |
-| Project registry | `C:\Users\you\.agent-inbox\projects.json` |
+| Data store root | `{{DATA_DIR}}` |
+| This document (in the store) | `{{DATA_DIR}}\PROTOCOL.md` |
+| Requests (one JSON file each) | `{{DATA_DIR}}\requests\<id>.json` |
+| Archived requests (settled, filed away) | `{{DATA_DIR}}\requests\archive\<id>.json` |
+| Answered digests (per project, newest 50) | `{{DATA_DIR}}\answers\<slug>.md` |
+| Digest archive (entries older than the 50) | `{{DATA_DIR}}\answers\<slug>-archive.md` |
+| Project registry | `{{DATA_DIR}}\projects.json` |
 
 Some projects also carry an **in-repo mirror** of their digest (for example
 `dev\agent-answers.md` inside the project repo). The mirror is identical to
@@ -249,9 +249,9 @@ Notes:
 1. **Pass the plain-language contract (section 1) before anything else.** Apply the
    60-second test to your own draft. Jargon goes in `technical_context`, nowhere else.
 2. **Search before you file.** Check the answered digest for your project (in-repo mirror if
-   present, else `C:\Users\you\.agent-inbox\answers\<project>.md`, plus
+   present, else `{{DATA_DIR}}\answers\<project>.md`, plus
    `answers\<project>-archive.md` for older history) AND scan
-   `C:\Users\you\.agent-inbox\requests\` for open requests about the same topic. **Do not
+   `{{DATA_DIR}}\requests\` for open requests about the same topic. **Do not
    re-ask an answered question, and do not duplicate an open one.**
 3. **One decision per request.** If you need three decisions, file three requests. Never
    bundle.
@@ -274,7 +274,7 @@ Notes:
 ## 4. Consumption rules (how to read answers)
 
 1. **At task start**, read your project's answers digest: the in-repo mirror if the project
-   has one, else `C:\Users\you\.agent-inbox\answers\<slug>.md`. Treat it as standing
+   has one, else `{{DATA_DIR}}\answers\<slug>.md`. Treat it as standing
    direction from Joe. The digest holds the newest 50 entries; older history lives in
    `answers\<slug>-archive.md` in the data store (the digest's footer points there).
 2. The digest is generated — **never edit it**; edits are overwritten on the next change.
@@ -300,9 +300,9 @@ Notes:
 ```markdown
 ## Asking Joe (Agent Inbox)
 When blocked on a decision only Joe can make, file a request as a JSON file in
-`C:\Users\you\.agent-inbox\requests\` following `C:\Users\you\.agent-inbox\PROTOCOL.md`.
+`{{DATA_DIR}}\requests\` following `{{DATA_DIR}}\PROTOCOL.md`.
 Before filing, check the answered digest (in-repo mirror if present, else
-`C:\Users\you\.agent-inbox\answers\<project>.md`) — do not re-ask answered questions.
+`{{DATA_DIR}}\answers\<project>.md`) — do not re-ask answered questions.
 Answers here are Joe's direction, but durable decisions must still be promoted into this
 repo's own docs per its rules.
 ```
