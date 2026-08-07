@@ -46,11 +46,16 @@ If the answer is no, the request does not conform.
   contain: file paths, code identifiers or symbol names, section references (§),
   decision/ticket IDs (e.g. "D-103", "ADR-7"), internal workstream slugs, or acronyms that
   are not ordinary English. All of that goes in `technical_context` — and only there.
-- The `ask` **MUST** state the decision in cause → effect → tradeoff/cost terms:
+- The card as a whole **MUST** state the decision in cause → effect → tradeoff/cost terms:
   - what is being decided;
   - what the user- or product-visible effect of each option is;
   - what each option costs (time, complexity, risk);
   - what happens if no decision is made.
+- **Keep the `ask` to the question itself — one to three short sentences.** When the
+  request has structured `options`, each option's visible effect and cost goes in that
+  option's `description`, not the ask. Use `background` for shared context and for "what
+  happens if no decision is made". Asks over ~400 characters are flagged as too long to
+  be a card and are likely to be returned.
 - `technical_context` (optional array of strings) is the jargon quarantine: file paths,
   symbols, decision references, workstream slugs, and agent-to-agent implementation notes
   live there. The app shows it collapsed; the human never needs it to answer.
@@ -73,7 +78,11 @@ GOOD (the same question, conforming):
 ```json
 {
   "title": "Add a yes/no toggle for showing the full text?",
-  "ask": "Should we add a yes/no toggle to the settings so people can choose whether the full text is shown? Adding it: small piece of UI work now, but one more setting for users to understand. Not adding it: we always show the full text, which is simpler but can clutter the screen when the text is long. If you don't decide, this part of the work stays stopped.",
+  "ask": "Should we add a yes/no toggle to the settings so people can choose whether the full text is shown?",
+  "background": [
+    "Some people find long text overwhelming; others want everything visible at once.",
+    "If you don't decide, this part of the work stays stopped."
+  ],
   "response": {
     "type": "choice",
     "options": [
@@ -119,10 +128,11 @@ id = <YYYYMMDD>-<project>-<kebab-short-title>-<4 random hex>
   "project": "myproject",
   "agent": "claude-code",
   "title": "Add a yes/no toggle for showing the full text?",
-  "ask": "Should we add a yes/no toggle to the settings so people can choose whether the full text is shown? Adding it: small piece of UI work now, but one more setting to understand. Not adding it: we always show the full text, which is simpler but can clutter the screen. If you don't decide, this part of the work stays stopped.",
+  "ask": "Should we add a yes/no toggle to the settings so people can choose whether the full text is shown?",
   "background": [
     "Some people find long text overwhelming; others want everything visible at once.",
-    "Either choice ships this week — the cost difference is small."
+    "Either choice ships this week — the cost difference is small.",
+    "If you don't decide, this part of the work stays stopped."
   ],
   "urgency": "high",
   "blocking": true,
