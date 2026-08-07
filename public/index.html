@@ -1,0 +1,1340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Inbox</title>
+<style>
+  :root {
+    --bg: #f2f4f8;
+    --panel: #ffffff;
+    --panel-2: #f8f9fb;
+    --border: #e1e5ec;
+    --text: #171c26;
+    --text-dim: #5b6472;
+    --text-faint: #8b93a1;
+    --accent: #3b63f3;
+    --accent-soft: #e6ecfe;
+    --green: #148055;
+    --green-soft: #dcf3e9;
+    --red: #cc3344;
+    --red-soft: #fbe4e7;
+    --amber: #9a6700;
+    --amber-soft: #fbf0d7;
+    --purple: #7048c8;
+    --purple-soft: #ede6fb;
+    --gray-soft: #eceef2;
+    --shadow: 0 1px 2px rgba(20, 28, 45, .06), 0 4px 16px rgba(20, 28, 45, .07);
+    --radius: 10px;
+    --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171e;
+      --panel: #1d222c;
+      --panel-2: #232935;
+      --border: #313947;
+      --text: #e8ebf1;
+      --text-dim: #a2abba;
+      --text-faint: #6f7887;
+      --accent: #7d9bff;
+      --accent-soft: #263354;
+      --green: #4cc593;
+      --green-soft: #1d3a30;
+      --red: #f2788a;
+      --red-soft: #46232a;
+      --amber: #e3b341;
+      --amber-soft: #3d321f;
+      --purple: #b195ec;
+      --purple-soft: #322747;
+      --gray-soft: #2a303c;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font: 14px/1.5 system-ui, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  input, textarea, select { font: inherit; color: var(--text); }
+  input, textarea, select {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 10px;
+  }
+  input:focus, textarea:focus, select:focus, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  ::placeholder { color: var(--text-faint); }
+
+  /* ---------- header ---------- */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 650; }
+  .brand-mark {
+    width: 26px; height: 26px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 13px; font-weight: 800;
+  }
+  .counts { display: flex; gap: 8px; flex-wrap: wrap; }
+  .count-chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    border-radius: 999px;
+    padding: 4px 12px 4px 10px;
+    color: var(--text-dim);
+    font-size: 12.5px;
+  }
+  .count-chip b {
+    font-size: 13.5px;
+    color: var(--text);
+    min-width: 14px;
+    text-align: center;
+  }
+  .count-chip.hot b { color: var(--red); }
+  .count-chip.good b { color: var(--green); }
+  header .spacer { flex: 1; }
+  .btn {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-weight: 550;
+  }
+  .btn:hover { background: var(--panel-2); }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.danger { color: var(--red); }
+  .btn.small { padding: 4px 10px; font-size: 12.5px; }
+
+  #offline-banner {
+    background: var(--amber-soft);
+    color: var(--amber);
+    text-align: center;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ---------- toolbar ---------- */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    flex-wrap: wrap;
+  }
+  .tabs {
+    display: inline-flex;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .tabs button {
+    border: 0;
+    background: transparent;
+    border-radius: 7px;
+    padding: 5px 13px;
+    color: var(--text-dim);
+    font-weight: 520;
+  }
+  .tabs button.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 640;
+  }
+  #search { flex: 1; min-width: 180px; max-width: 380px; }
+
+  /* ---------- main panes ---------- */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(320px, 420px) 1fr;
+    gap: 14px;
+    padding: 0 20px 14px;
+    min-height: 0;
+  }
+  .pane {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #list-pane { overflow-y: auto; }
+  #request-list { list-style: none; margin: 0; padding: 6px; }
+  .row {
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .row:hover { background: var(--panel-2); }
+  .row.selected { background: var(--accent-soft); border-color: var(--accent); }
+  .row-top { display: flex; align-items: baseline; gap: 8px; }
+  .row-title {
+    font-weight: 600;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .row-age { color: var(--text-faint); font-size: 11.5px; white-space: nowrap; }
+  .row-badges { display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap; align-items: center; }
+  .pill {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 650;
+    letter-spacing: .03em;
+    padding: 1.5px 8px;
+    border-radius: 999px;
+    text-transform: uppercase;
+  }
+  .pill.project { background: var(--gray-soft); color: var(--text-dim); text-transform: none; font-size: 11.5px; font-weight: 560; }
+  .pill.blocking { background: var(--red-soft); color: var(--red); }
+  .pill.urg-high { background: var(--red-soft); color: var(--red); }
+  .pill.urg-medium { background: var(--amber-soft); color: var(--amber); }
+  .pill.urg-low { background: var(--gray-soft); color: var(--text-faint); }
+  .pill.st-open { background: var(--accent-soft); color: var(--accent); }
+  .pill.st-answered { background: var(--green-soft); color: var(--green); }
+  .pill.st-withdrawn { background: var(--gray-soft); color: var(--text-faint); }
+  .pill.st-superseded { background: var(--purple-soft); color: var(--purple); }
+  .pill.st-returned { background: var(--amber-soft); color: var(--amber); }
+  .pill.st-unknown { background: var(--gray-soft); color: var(--text-faint); }
+  .pill.clarity { background: var(--amber-soft); color: var(--amber); }
+  .list-empty { padding: 40px 16px; text-align: center; color: var(--text-faint); }
+
+  /* ---------- detail ---------- */
+  #detail-pane { overflow-y: auto; }
+  #detail { padding: 20px 24px 28px; }
+  .detail-placeholder {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-faint);
+    gap: 8px;
+    padding: 60px 20px;
+    text-align: center;
+  }
+  .detail-placeholder .big { font-size: 34px; }
+  #back-btn { display: none; margin: 12px 0 0 12px; }
+  .detail-title { font-size: 19px; font-weight: 680; margin: 8px 0 2px; }
+  .detail-meta { color: var(--text-faint); font-size: 12px; margin-bottom: 14px; }
+  .detail-meta .id { font-family: var(--mono); }
+  .updated-hint {
+    background: var(--amber-soft);
+    color: var(--amber);
+    border-radius: 7px;
+    padding: 6px 10px;
+    font-size: 12.5px;
+    margin-bottom: 12px;
+  }
+  .section { margin: 16px 0; }
+  .section h3 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--text-faint);
+  }
+  .ask-text { font-size: 15px; }
+  .bullets { margin: 4px 0 0; padding-left: 20px; }
+  .bullets li { margin: 3px 0; color: var(--text-dim); }
+
+  .answer-card {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .answer-card.recorded { border-left: 3px solid var(--green); }
+  .answer-card.previous { opacity: .62; border-left: 3px solid var(--text-faint); }
+  .answer-card.returned-reason { border-left: 3px solid var(--amber); }
+  .clarity-card {
+    background: var(--amber-soft);
+    border: 1px solid var(--amber);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    color: var(--amber);
+    font-size: 12.5px;
+  }
+  .clarity-card ul { margin: 4px 0 0; padding-left: 18px; }
+  .clarity-card li { margin: 2px 0; }
+  .tech-notes {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    background: var(--panel-2);
+  }
+  .tech-notes summary {
+    padding: 8px 12px;
+    cursor: pointer;
+    color: var(--text-faint);
+    font-size: 12px;
+    user-select: none;
+  }
+  .tech-notes ul { margin: 0; padding: 0 14px 10px 30px; }
+  .tech-notes li { font-family: var(--mono); font-size: 12px; color: var(--text-dim); margin: 3px 0; word-break: break-all; }
+  .answer-value { font-size: 15px; font-weight: 600; margin: 2px 0; white-space: pre-wrap; }
+  .answer-when { color: var(--text-faint); font-size: 12px; }
+  .answer-notes { color: var(--text-dim); margin-top: 6px; white-space: pre-wrap; }
+
+  .opt-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 6px 0;
+    cursor: pointer;
+    background: var(--panel);
+  }
+  .opt-row:hover { background: var(--panel-2); }
+  .opt-row input { margin-top: 3px; accent-color: var(--accent); }
+  .opt-label { font-weight: 560; }
+  .opt-desc { color: var(--text-faint); font-size: 12.5px; }
+  .checklist .opt-row input:checked ~ div .opt-label { text-decoration: line-through; color: var(--text-faint); }
+
+  .segmented { display: flex; gap: 8px; }
+  .segmented button {
+    flex: 0 0 auto;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 8px 22px;
+    font-weight: 600;
+  }
+  .segmented button.approve.on { background: var(--green-soft); border-color: var(--green); color: var(--green); }
+  .segmented button.reject.on { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+
+  textarea { width: 100%; min-height: 74px; resize: vertical; }
+  .form-error { color: var(--red); font-size: 12.5px; margin-top: 6px; }
+  .actions { display: flex; gap: 10px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
+
+  /* ---------- problems strip ---------- */
+  #problems {
+    margin: 0 20px 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  #problems summary {
+    padding: 9px 16px;
+    cursor: pointer;
+    color: var(--text-dim);
+    font-size: 12.5px;
+    user-select: none;
+  }
+  #problems.has-problems summary { color: var(--amber); font-weight: 600; }
+  #problems ul { margin: 0; padding: 0 16px 12px 34px; }
+  #problems li { font-size: 12.5px; color: var(--text-dim); margin: 3px 0; }
+  #problems li code { font-family: var(--mono); color: var(--text); }
+
+  /* ---------- toasts ---------- */
+  #toasts {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 60;
+    max-width: 380px;
+  }
+  .toast {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 9px;
+    box-shadow: var(--shadow);
+    padding: 10px 34px 10px 13px;
+    font-size: 13px;
+    position: relative;
+    animation: slide-in .18s ease-out;
+  }
+  @keyframes slide-in { from { transform: translateY(8px); opacity: 0; } }
+  .toast.ok { border-left-color: var(--green); }
+  .toast.warn { border-left-color: var(--amber); }
+  .toast.error { border-left-color: var(--red); }
+  .toast .close {
+    position: absolute; top: 4px; right: 6px;
+    border: 0; background: transparent;
+    color: var(--text-faint); font-size: 15px; line-height: 1;
+    padding: 3px;
+  }
+
+  /* ---------- dialog / new request ---------- */
+  dialog {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--panel);
+    color: var(--text);
+    padding: 0;
+    width: min(640px, calc(100vw - 32px));
+    max-height: calc(100vh - 60px);
+    box-shadow: var(--shadow);
+  }
+  dialog::backdrop { background: rgba(10, 14, 22, .45); }
+  .dialog-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 650;
+  }
+  .dialog-body { padding: 16px 20px 20px; overflow-y: auto; max-height: calc(100vh - 170px); }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; font-weight: 620; color: var(--text-dim); margin-bottom: 4px; }
+  .field input[type=text], .field textarea, .field select { width: 100%; }
+  .field-row { display: flex; gap: 12px; }
+  .field-row .field { flex: 1; }
+  .field .hint { font-size: 11.5px; color: var(--text-faint); margin-top: 3px; }
+  .check-field { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
+  .check-field input { accent-color: var(--accent); }
+  .option-editor-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .option-editor-row input { flex: 1; min-width: 0; }
+  .option-editor-row .remove-opt {
+    border: 1px solid var(--border); background: var(--panel);
+    border-radius: 7px; width: 30px; height: 30px; flex: 0 0 30px;
+    color: var(--text-faint);
+  }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 820px) {
+    main { grid-template-columns: 1fr; }
+    #detail-pane { display: none; }
+    main.show-detail #list-pane { display: none; }
+    main.show-detail #detail-pane { display: flex; }
+    main.show-detail #back-btn { display: inline-block; align-self: flex-start; }
+    header { gap: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="brand-mark">Ai</span>Agent Inbox</div>
+  <div class="counts">
+    <span class="count-chip">Needs You <b id="count-open">0</b></span>
+    <span class="count-chip hot">Blocking <b id="count-blocking">0</b></span>
+    <span class="count-chip">Waiting on agent <b id="count-waiting">0</b></span>
+    <span class="count-chip good">Answered Today <b id="count-today">0</b></span>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn primary" id="btn-new">+ New request</button>
+</header>
+
+<div id="offline-banner" hidden>Server unreachable — showing last known data.</div>
+
+<div class="toolbar">
+  <nav class="tabs" id="tabs">
+    <button data-filter="all">All</button>
+    <button data-filter="needs" class="active">Needs you</button>
+    <button data-filter="blocking">Blocking</button>
+    <button data-filter="answered">Answered</button>
+  </nav>
+  <input id="search" type="search" placeholder="Search title, ask, project…" autocomplete="off">
+</div>
+
+<main id="main">
+  <section class="pane" id="list-pane">
+    <ul id="request-list"></ul>
+  </section>
+  <section class="pane" id="detail-pane">
+    <button class="btn small" id="back-btn">&larr; Back to list</button>
+    <div id="detail"></div>
+  </section>
+</main>
+
+<details id="problems">
+  <summary id="problems-summary">Problems (0)</summary>
+  <ul id="problems-list"></ul>
+</details>
+
+<div id="toasts"></div>
+
+<dialog id="new-dialog">
+  <div class="dialog-head">
+    <span>New request</span>
+    <button class="btn small" id="new-cancel" type="button">Close</button>
+  </div>
+  <div class="dialog-body">
+    <div class="field-row">
+      <div class="field">
+        <label for="nr-project">Project slug</label>
+        <input type="text" id="nr-project" placeholder="myproject">
+        <div class="hint">lowercase letters, digits, hyphens</div>
+      </div>
+      <div class="field">
+        <label for="nr-agent">Agent</label>
+        <input type="text" id="nr-agent" placeholder="human" value="human">
+      </div>
+    </div>
+    <div class="field">
+      <label for="nr-title">Title</label>
+      <input type="text" id="nr-title" placeholder="Choose storage format for answers">
+    </div>
+    <div class="field">
+      <label for="nr-ask">Ask</label>
+      <textarea id="nr-ask" placeholder="One or two sentences: the actual question or decision needed."></textarea>
+    </div>
+    <div class="field">
+      <label for="nr-background">Background (one bullet per line)</label>
+      <textarea id="nr-background"></textarea>
+      <div class="hint">plain language only — a non-technical reader must be able to decide from this</div>
+    </div>
+    <div class="field">
+      <label for="nr-tech">Agent-to-agent notes, technical (one per line, optional)</label>
+      <textarea id="nr-tech"></textarea>
+      <div class="hint">file paths, symbols, IDs and other jargon go here, never in the fields above</div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="nr-urgency">Urgency</label>
+        <select id="nr-urgency">
+          <option value="high">high</option>
+          <option value="medium" selected>medium</option>
+          <option value="low">low</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="nr-type">Response type</label>
+        <select id="nr-type">
+          <option value="choice">choice — pick one</option>
+          <option value="multi_select">multi_select — pick any</option>
+          <option value="text">text — free text</option>
+          <option value="checklist">checklist — tick items</option>
+          <option value="approval">approval — approve / reject</option>
+        </select>
+      </div>
+    </div>
+    <div class="check-field">
+      <input type="checkbox" id="nr-blocking">
+      <label for="nr-blocking" style="margin:0">Blocking — the agent is stopped until this is answered</label>
+    </div>
+    <div class="field" id="nr-options-field">
+      <label>Options (key / label / description)</label>
+      <div id="nr-options"></div>
+      <button class="btn small" type="button" id="nr-add-option">+ Add option</button>
+    </div>
+    <div class="form-error" id="nr-error" hidden></div>
+    <div class="actions">
+      <button class="btn primary" id="nr-submit" type="button">Create request</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+'use strict';
+
+/* ========================= state ========================= */
+
+const POLL_MS = 3000;
+let state = { projects: { schema_version: 1, projects: {} }, requests: [], invalid: [] };
+let selectedId = null;
+let activeFilter = 'needs';
+let searchQuery = '';
+let detailDirty = false;           // user has unsaved input in the detail form
+let renderedDetailJson = null;     // serialized request as last rendered in detail
+let collectAnswer = null;          // set by renderDetail for the current form
+
+const $ = (sel) => document.querySelector(sel);
+
+/* ========================= DOM helper (XSS-safe) =========================
+   All agent-authored text flows through createTextNode / textContent.
+   Never assign untrusted data via innerHTML. */
+
+function h(tag, attrs, ...kids) {
+  const node = document.createElement(tag);
+  if (attrs) {
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v === undefined || v === null) continue;
+      if (k === 'class') node.className = v;
+      else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2), v);
+      else if (k === 'checked' || k === 'disabled' || k === 'open') { if (v) node[k] = true; }
+      else node.setAttribute(k, String(v));
+    }
+  }
+  for (const kid of kids.flat(Infinity)) {
+    if (kid === undefined || kid === null || kid === false) continue;
+    node.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return node;
+}
+
+/* ========================= formatting ========================= */
+
+function projectName(slug) {
+  const p = state.projects && state.projects.projects && state.projects.projects[slug];
+  return (p && typeof p.name === 'string' && p.name) ? p.name : slug;
+}
+
+function labelFor(response, key) {
+  if (response && Array.isArray(response.options)) {
+    const opt = response.options.find((o) => o && o.key === key);
+    if (opt && typeof opt.label === 'string' && opt.label) return opt.label;
+  }
+  return String(key);
+}
+
+function answerText(req) {
+  const a = req.answer;
+  if (!a || typeof a !== 'object' || a.value === undefined) return '(none)';
+  const type = req.response && req.response.type;
+  const v = a.value;
+  if (type === 'choice' && typeof v === 'string') return labelFor(req.response, v);
+  if ((type === 'multi_select' || type === 'checklist') && Array.isArray(v)) {
+    return v.length ? v.map((k) => labelFor(req.response, k)).join(', ') : '(none selected)';
+  }
+  if (type === 'text' && typeof v === 'string') return v;
+  if (type === 'approval' && v && typeof v === 'object') {
+    return v.decision === 'approve' ? 'Approved' : 'Rejected';
+  }
+  try { return JSON.stringify(v); } catch (_) { return String(v); }
+}
+
+function relAge(iso) {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return '';
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
+function localStamp(iso) {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return String(iso || '');
+  return new Date(t).toLocaleString();
+}
+
+function isToday(iso) {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return false;
+  const d = new Date(t);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() &&
+         d.getMonth() === now.getMonth() &&
+         d.getDate() === now.getDate();
+}
+
+/* ========================= fetch + poll ========================= */
+
+async function fetchState() {
+  // Narrow try: only fetch + parse. A render bug must not masquerade as
+  // "server unreachable".
+  let next;
+  try {
+    const res = await fetch('/api/state', { cache: 'no-store' });
+    if (!res.ok) {
+      setOffline(true, `Server error (HTTP ${res.status}) — showing last known data.`);
+      return;
+    }
+    next = await res.json();
+  } catch (_) {
+    setOffline(true, 'Server unreachable — showing last known data.');
+    return; // keep last data on screen
+  }
+  state = next;
+  setOffline(false);
+  try {
+    renderAll();
+  } catch (err) {
+    toast(`UI render error: ${err.message}`, 'error');
+  }
+}
+
+function setOffline(off, message) {
+  const banner = $('#offline-banner');
+  banner.hidden = !off;
+  if (off && message) banner.textContent = message;
+}
+
+// Total function: never throws, never returns a rejected promise. A dead
+// server comes back as { status: 0, ok: false, data: { error: ... } }.
+async function api(path, body) {
+  let res;
+  try {
+    res = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    return { status: 0, ok: false, data: { error: `Cannot reach the server: ${err.message}` } };
+  }
+  let data = {};
+  try {
+    data = await res.json();
+  } catch (_) {
+    data = { error: `Server returned an unreadable response (HTTP ${res.status}).` };
+  }
+  if (!data || typeof data !== 'object') data = { error: String(data) };
+  return { status: res.status, ok: res.ok, data };
+}
+
+// Readable failure text for any api() result — never "HTTP 0".
+function apiErrorText(res, action) {
+  if (res.data && res.data.error) return res.data.error;
+  return res.status ? `${action} failed (HTTP ${res.status}).` : `${action} failed: cannot reach the server.`;
+}
+
+/* ========================= toasts ========================= */
+
+function toast(message, kind = 'ok', ms = 5000) {
+  const box = h('div', { class: `toast ${kind}` }, message);
+  const close = h('button', { class: 'close', title: 'Dismiss', onclick: () => box.remove() }, '×');
+  box.append(close);
+  $('#toasts').append(box);
+  if (ms > 0) setTimeout(() => box.remove(), kind === 'ok' ? ms : ms * 2.4);
+}
+
+function showMirrorWarnings(warnings) {
+  for (const w of warnings || []) toast(`Mirror warning: ${w}`, 'warn', 6000);
+}
+
+/* ========================= counts + tabs ========================= */
+
+const SETTLED_STATUSES = ['answered', 'withdrawn', 'superseded'];
+
+// "Waiting on agent": returned for rewrite, plus any status we don't
+// recognize (some agent is presumably doing something with it).
+function isWaitingOnAgent(r) {
+  return r.status === 'returned' ||
+    (r.status !== 'open' && !SETTLED_STATUSES.includes(r.status));
+}
+
+function renderCounts() {
+  const reqs = state.requests || [];
+  $('#count-open').textContent = reqs.filter((r) => r.status === 'open').length;
+  $('#count-blocking').textContent = reqs.filter((r) => r.status === 'open' && r.blocking === true).length;
+  $('#count-waiting').textContent = reqs.filter(isWaitingOnAgent).length;
+  $('#count-today').textContent = reqs.filter(
+    (r) => r.status === 'answered' && r.answer && isToday(r.answer.answered_at),
+  ).length;
+}
+
+function matchesFilter(r) {
+  switch (activeFilter) {
+    case 'needs': return r.status === 'open';
+    case 'blocking': return r.status === 'open' && r.blocking === true;
+    case 'answered': return r.status === 'answered';
+    default: return true; // All: includes withdrawn/superseded/unknown
+  }
+}
+
+function matchesSearch(r) {
+  if (!searchQuery) return true;
+  const hay = `${r.title || ''} ${r.ask || ''} ${r.project || ''} ${projectName(r.project)}`.toLowerCase();
+  return hay.includes(searchQuery);
+}
+
+const URGENCY_RANK = { high: 0, medium: 1, low: 2 };
+
+function sortRequests(a, b) {
+  const ab = a.status === 'open' && a.blocking === true ? 0 : 1;
+  const bb = b.status === 'open' && b.blocking === true ? 0 : 1;
+  if (ab !== bb) return ab - bb;
+  const au = URGENCY_RANK[a.urgency] !== undefined ? URGENCY_RANK[a.urgency] : 3;
+  const bu = URGENCY_RANK[b.urgency] !== undefined ? URGENCY_RANK[b.urgency] : 3;
+  if (au !== bu) return au - bu;
+  return String(a.created || '').localeCompare(String(b.created || '')); // oldest first
+}
+
+/* ========================= list ========================= */
+
+function visibleRequests() {
+  return (state.requests || []).filter((r) => matchesFilter(r) && matchesSearch(r)).sort(sortRequests);
+}
+
+function statusPill(r) {
+  const known = ['open', 'answered', 'withdrawn', 'superseded', 'returned'];
+  const cls = known.includes(r.status) ? `st-${r.status}` : 'st-unknown';
+  return h('span', { class: `pill ${cls}` }, known.includes(r.status) ? r.status : `? ${r.status}`);
+}
+
+function clarityPill(r) {
+  if (!Array.isArray(r.clarity_warnings) || r.clarity_warnings.length === 0) return null;
+  return h('span', { class: 'pill clarity', title: r.clarity_warnings.join('\n') }, 'clarity');
+}
+
+function renderList() {
+  const list = $('#request-list');
+  list.replaceChildren();
+  const rows = visibleRequests();
+  if (rows.length === 0) {
+    list.append(h('li', { class: 'list-empty' },
+      searchQuery ? 'No requests match your search.' : 'Nothing here. Agents will file requests as JSON files; they show up automatically.'));
+    return;
+  }
+  for (const r of rows) {
+    const badges = [h('span', { class: 'pill project' }, projectName(r.project))];
+    if (r.status === 'open' && r.blocking === true) badges.push(h('span', { class: 'pill blocking' }, 'blocking'));
+    if (['high', 'medium', 'low'].includes(r.urgency)) badges.push(h('span', { class: `pill urg-${r.urgency}` }, r.urgency));
+    const clarity = clarityPill(r);
+    if (clarity) badges.push(clarity);
+    badges.push(statusPill(r));
+    const row = h('li', {
+      class: `row${r.id === selectedId ? ' selected' : ''}`,
+      onclick: () => selectRequest(r.id),
+    },
+      h('div', { class: 'row-top' },
+        h('span', { class: 'row-title' }, r.title || '(untitled)'),
+        h('span', { class: 'row-age' }, relAge(r.created)),
+      ),
+      h('div', { class: 'row-badges' }, badges),
+    );
+    list.append(row);
+  }
+}
+
+function selectRequest(id) {
+  selectedId = id;
+  detailDirty = false;
+  renderedDetailJson = null;
+  $('#main').classList.add('show-detail');
+  renderList();
+  syncDetail(true);
+}
+
+/* ========================= detail ========================= */
+
+function getSelected() {
+  return (state.requests || []).find((r) => r.id === selectedId) || null;
+}
+
+function syncDetail(force = false) {
+  const req = getSelected();
+  const detail = $('#detail');
+  if (!req) {
+    renderedDetailJson = null;
+    detailDirty = false;
+    collectAnswer = null;
+    detail.replaceChildren(h('div', { class: 'detail-placeholder' },
+      h('div', { class: 'big' }, '\u{1F4EC}'),
+      h('div', {}, selectedId ? 'This request is no longer on disk.' : 'Select a request to view and answer it.'),
+    ));
+    return;
+  }
+  const json = JSON.stringify(req);
+  if (!force && json === renderedDetailJson) return;
+  if (!force && detailDirty) {
+    // Never clobber unsaved input: leave the form alone, show a hint.
+    const hint = $('#updated-hint');
+    if (hint) hint.hidden = false;
+    return;
+  }
+  renderDetail(req);
+  renderedDetailJson = json;
+}
+
+function metaLine(req) {
+  const bits = [];
+  bits.push(`asked by ${req.agent || 'unknown'}`);
+  if (req.created) bits.push(`${relAge(req.created)} (${localStamp(req.created)})`);
+  return h('div', { class: 'detail-meta' },
+    bits.join(' · '), ' · ', h('span', { class: 'id' }, req.id));
+}
+
+function bulletSection(title, items) {
+  if (!Array.isArray(items) || items.length === 0) return null;
+  return h('div', { class: 'section' },
+    h('h3', {}, title),
+    h('ul', { class: 'bullets' }, items.map((s) => h('li', {}, String(s)))),
+  );
+}
+
+function recordedAnswerCard(req, { previous = false } = {}) {
+  const a = req.answer;
+  if (!a || typeof a !== 'object') return null;
+  return h('div', { class: `answer-card ${previous ? 'previous' : 'recorded'}` },
+    h('h3', { style: 'margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-faint)' },
+      previous ? 'Previous answer (reopened)' : 'Recorded answer'),
+    h('div', { class: 'answer-value' }, answerText(req)),
+    a.answered_at ? h('div', { class: 'answer-when' }, `answered ${localStamp(a.answered_at)}`) : null,
+    a.notes ? h('div', { class: 'answer-notes' }, a.notes) : null,
+  );
+}
+
+function optionRows(req, inputType, preChecked) {
+  const options = Array.isArray(req.response.options) ? req.response.options : [];
+  const name = 'answer-opt';
+  return options.map((opt) => {
+    if (!opt || typeof opt !== 'object') return null;
+    const input = h('input', { type: inputType, name, value: String(opt.key) });
+    if (preChecked && preChecked.includes(opt.key)) input.checked = true;
+    return h('label', { class: 'opt-row' },
+      input,
+      h('div', {},
+        h('div', { class: 'opt-label' }, opt.label || opt.key),
+        opt.description ? h('div', { class: 'opt-desc' }, opt.description) : null,
+      ),
+    );
+  });
+}
+
+function buildAnswerForm(req) {
+  const form = h('div', { class: 'section' });
+  form.append(h('h3', {}, 'Your answer'));
+  const errorBox = h('div', { class: 'form-error', hidden: 'hidden' });
+  const type = req.response.type;
+  let controls;
+  let approvalDecision = null;
+
+  if (type === 'choice') {
+    controls = h('div', {}, optionRows(req, 'radio'));
+    collectAnswer = () => {
+      const checked = controls.querySelector('input:checked');
+      return checked ? { value: checked.value } : { error: 'Pick one option.' };
+    };
+  } else if (type === 'multi_select' || type === 'checklist') {
+    controls = h('div', { class: type === 'checklist' ? 'checklist' : '' }, optionRows(req, 'checkbox'));
+    collectAnswer = () => ({
+      value: [...controls.querySelectorAll('input:checked')].map((i) => i.value),
+    });
+  } else if (type === 'text') {
+    const ta = h('textarea', { placeholder: 'Type your answer…' });
+    controls = h('div', {}, ta);
+    collectAnswer = () => {
+      const v = ta.value.trim();
+      return v ? { value: v } : { error: 'Answer text cannot be empty.' };
+    };
+  } else if (type === 'approval') {
+    const approveBtn = h('button', { class: 'approve', type: 'button' }, '✓ Approve');
+    const rejectBtn = h('button', { class: 'reject', type: 'button' }, '✗ Reject');
+    approveBtn.addEventListener('click', () => {
+      approvalDecision = 'approve';
+      approveBtn.classList.add('on'); rejectBtn.classList.remove('on');
+      detailDirty = true;
+    });
+    rejectBtn.addEventListener('click', () => {
+      approvalDecision = 'reject';
+      rejectBtn.classList.add('on'); approveBtn.classList.remove('on');
+      detailDirty = true;
+    });
+    controls = h('div', { class: 'segmented' }, approveBtn, rejectBtn);
+    collectAnswer = () => approvalDecision
+      ? { value: { decision: approvalDecision } }
+      : { error: 'Choose Approve or Reject.' };
+  } else {
+    controls = h('div', { class: 'form-error' }, `Unknown response type "${String(type)}" — answer via the JSON file directly.`);
+    collectAnswer = () => ({ error: `Unknown response type "${String(type)}".` });
+  }
+
+  const notes = h('textarea', { placeholder: 'Notes (optional)…', style: 'margin-top:10px' });
+  const submit = h('button', { class: 'btn primary', type: 'button' }, 'Submit answer');
+  submit.addEventListener('click', () => submitAnswer(req, notes, errorBox, submit));
+  const returnBtn = h('button', {
+    class: 'btn', type: 'button',
+    title: 'Bounce this back to the agent to rewrite in plain language',
+    onclick: () => returnForRewrite(req),
+  }, 'Return for rewrite');
+
+  form.append(controls, notes, errorBox, h('div', { class: 'actions' }, submit, returnBtn));
+  form.addEventListener('input', () => { detailDirty = true; });
+  return form;
+}
+
+function claritySection(req) {
+  if (!Array.isArray(req.clarity_warnings) || req.clarity_warnings.length === 0) return null;
+  return h('div', { class: 'section' },
+    h('div', { class: 'clarity-card' },
+      h('strong', {}, 'Clarity check (advisory)'),
+      h('ul', {}, req.clarity_warnings.map((w) => h('li', {}, w))),
+    ),
+  );
+}
+
+function technicalContextSection(req) {
+  if (!Array.isArray(req.technical_context) || req.technical_context.length === 0) return null;
+  return h('div', { class: 'section' },
+    h('details', { class: 'tech-notes' },
+      h('summary', {}, `Agent-to-agent notes (technical) — ${req.technical_context.length}`),
+      h('ul', {}, req.technical_context.map((s) => h('li', {}, String(s)))),
+    ),
+  );
+}
+
+function returnedReasonCard(req) {
+  return h('div', { class: 'answer-card returned-reason' },
+    h('h3', { style: 'margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--amber)' },
+      'Returned to the agent for rewrite'),
+    h('div', { class: 'answer-notes' }, req.returned_reason || '(no reason recorded)'),
+    h('div', { class: 'answer-when', style: 'margin-top:6px' },
+      'The agent should rewrite this request and set its status back to "open".'),
+  );
+}
+
+async function submitAnswer(req, notesEl, errorBox, submitBtn, force = false) {
+  const collected = collectAnswer ? collectAnswer() : { error: 'No form.' };
+  if (collected.error) {
+    errorBox.textContent = collected.error;
+    errorBox.hidden = false;
+    return;
+  }
+  errorBox.hidden = true;
+  const body = { value: collected.value };
+  const notes = notesEl.value.trim();
+  if (notes) body.notes = notes;
+  if (force) body.force = true;
+
+  submitBtn.disabled = true;
+  try {
+    const res = await api(`/api/requests/${encodeURIComponent(req.id)}/answer`, body);
+    if (res.status === 409 && !force) {
+      const msg = res.data && res.data.error ? res.data.error : 'This request is no longer open.';
+      if (/archived/i.test(msg)) {
+        // Force can't fix an archived request — don't offer a pointless confirm.
+        errorBox.textContent = msg;
+        errorBox.hidden = false;
+        return;
+      }
+      if (window.confirm(`${msg}\n\nOverwrite with your answer anyway?`)) {
+        submitBtn.disabled = false;
+        return submitAnswer(req, notesEl, errorBox, submitBtn, true);
+      }
+      return;
+    }
+    if (!res.ok) {
+      errorBox.textContent = apiErrorText(res, 'Submitting the answer');
+      errorBox.hidden = false;
+      return;
+    }
+    detailDirty = false;
+    renderedDetailJson = null;
+    toast('Answer recorded.', 'ok');
+    showMirrorWarnings(res.data.mirror_warnings);
+    await fetchState();
+  } finally {
+    submitBtn.disabled = false;
+  }
+}
+
+async function changeStatus(req, status, extra = {}) {
+  const body = { status, ...extra };
+  const res = await api(`/api/requests/${encodeURIComponent(req.id)}/status`, body);
+  if (!res.ok) {
+    toast(apiErrorText(res, 'Status change'), 'error');
+    return;
+  }
+  detailDirty = false;
+  renderedDetailJson = null;
+  toast(status === 'returned' ? 'Returned to the agent for rewrite.' : `Marked ${status}.`, 'ok');
+  showMirrorWarnings(res.data.mirror_warnings);
+  await fetchState();
+}
+
+const DEFAULT_RETURN_REASON =
+  'Please rewrite in plain language per PROTOCOL.md — no jargon, no internal references; ' +
+  'state the decision and each option’s effect and cost in plain terms.';
+
+function returnForRewrite(req) {
+  const reason = window.prompt('Reason to send back to the agent:', DEFAULT_RETURN_REASON);
+  if (reason === null) return; // cancelled
+  const trimmed = reason.trim();
+  if (!trimmed) {
+    toast('A reason is required to return a request.', 'error');
+    return;
+  }
+  changeStatus(req, 'returned', { returned_reason: trimmed });
+}
+
+async function archiveRequest(req) {
+  const res = await api(`/api/requests/${encodeURIComponent(req.id)}/archive`, {});
+  if (!res.ok) {
+    toast(apiErrorText(res, 'Archiving'), 'error');
+    return;
+  }
+  toast('Archived. (File moved to requests\\archive; digests unchanged.)', 'ok');
+  selectedId = null;
+  detailDirty = false;
+  renderedDetailJson = null;
+  $('#main').classList.remove('show-detail');
+  await fetchState();
+}
+
+function renderDetail(req) {
+  collectAnswer = null;
+  const detail = $('#detail');
+  const kids = [];
+
+  kids.push(h('div', { class: 'updated-hint', id: 'updated-hint', hidden: 'hidden' },
+    'This request changed on disk while you were typing. Submitting will overwrite; reselect it to reload.'));
+
+  kids.push(h('div', { class: 'row-badges' },
+    h('span', { class: 'pill project' }, projectName(req.project)),
+    req.status === 'open' && req.blocking === true ? h('span', { class: 'pill blocking' }, 'blocking') : null,
+    ['high', 'medium', 'low'].includes(req.urgency) ? h('span', { class: `pill urg-${req.urgency}` }, req.urgency) : null,
+    statusPill(req),
+  ));
+  kids.push(h('div', { class: 'detail-title' }, req.title || '(untitled)'));
+  kids.push(metaLine(req));
+
+  kids.push(h('div', { class: 'section' },
+    h('h3', {}, 'Ask'),
+    h('div', { class: 'ask-text' }, req.ask || '(no ask text)'),
+  ));
+  kids.push(bulletSection('Background', req.background));
+  kids.push(bulletSection('When answered, the agent will', req.on_answered));
+  kids.push(technicalContextSection(req));
+
+  if (req.status === 'open') {
+    if (req.returned_reason) {
+      kids.push(h('div', { class: 'detail-meta' },
+        'Previously returned for rewrite: ', String(req.returned_reason)));
+    }
+    if (req.answer && typeof req.answer === 'object') {
+      kids.push(h('div', { class: 'section' }, recordedAnswerCard(req, { previous: true })));
+    }
+    kids.push(claritySection(req));
+    kids.push(buildAnswerForm(req));
+  } else if (req.status === 'returned') {
+    kids.push(claritySection(req));
+    kids.push(h('div', { class: 'section' }, returnedReasonCard(req)));
+    kids.push(h('div', { class: 'actions' },
+      h('button', {
+        class: 'btn', type: 'button',
+        title: 'Take it back — answer it yourself without waiting for the rewrite',
+        onclick: () => changeStatus(req, 'open'),
+      }, 'Reopen'),
+      h('button', {
+        class: 'btn danger', type: 'button',
+        onclick: () => changeStatus(req, 'withdrawn'),
+      }, 'Withdraw'),
+    ));
+  } else {
+    const card = recordedAnswerCard(req);
+    kids.push(h('div', { class: 'section' },
+      h('h3', {}, 'Answer'),
+      card || h('div', { class: 'answer-card' },
+        h('div', { class: 'answer-value' },
+          req.status === 'superseded'
+            ? `(none — superseded by ${req.superseded_by || 'n/a'})`
+            : '(no answer recorded)')),
+    ));
+    if (req.status === 'superseded' && req.superseded_by && card) {
+      kids.push(h('div', { class: 'detail-meta' }, 'Superseded by: ', h('span', { class: 'id' }, req.superseded_by)));
+    }
+    const actions = [
+      h('button', {
+        class: 'btn', type: 'button',
+        onclick: () => changeStatus(req, 'open'),
+      }, 'Reopen'),
+    ];
+    if (req.status !== 'superseded') {
+      actions.push(h('button', {
+        class: 'btn', type: 'button',
+        onclick: () => {
+          const successor = window.prompt('Successor request id (optional — leave blank for none):', '');
+          if (successor === null) return; // cancelled
+          const trimmed = successor.trim();
+          if (trimmed && !/^[A-Za-z0-9-]{1,200}$/.test(trimmed)) {
+            toast('Successor id may only contain letters, digits and hyphens.', 'error');
+            return;
+          }
+          changeStatus(req, 'superseded', trimmed ? { superseded_by: trimmed } : {});
+        },
+      }, 'Mark superseded'));
+    }
+    if (req.status !== 'withdrawn') {
+      actions.push(h('button', {
+        class: 'btn danger', type: 'button',
+        onclick: () => changeStatus(req, 'withdrawn'),
+      }, 'Withdraw'));
+    }
+    if (['answered', 'withdrawn', 'superseded'].includes(req.status)) {
+      actions.push(h('button', {
+        class: 'btn', type: 'button',
+        title: 'Move the file to requests\\archive — it disappears from the app; digests are unaffected',
+        onclick: () => archiveRequest(req),
+      }, 'Archive'));
+    }
+    kids.push(h('div', { class: 'actions' }, actions));
+  }
+
+  detail.replaceChildren(...kids.filter(Boolean));
+  detailDirty = false;
+}
+
+/* ========================= problems strip ========================= */
+
+function renderProblems() {
+  const invalid = state.invalid || [];
+  const problems = $('#problems');
+  $('#problems-summary').textContent = `Problems (${invalid.length})`;
+  problems.classList.toggle('has-problems', invalid.length > 0);
+  const ul = $('#problems-list');
+  ul.replaceChildren(...invalid.map((i) =>
+    h('li', {}, h('code', {}, i.file), ` — ${i.error}`)));
+}
+
+/* ========================= new request dialog ========================= */
+
+const OPTION_TYPES = ['choice', 'multi_select', 'checklist'];
+
+function addOptionRow(key = '', label = '', description = '') {
+  const row = h('div', { class: 'option-editor-row' },
+    h('input', { type: 'text', placeholder: 'key', value: key, 'data-role': 'key' }),
+    h('input', { type: 'text', placeholder: 'label', value: label, 'data-role': 'label' }),
+    h('input', { type: 'text', placeholder: 'description (optional)', value: description, 'data-role': 'desc' }),
+  );
+  row.append(h('button', { class: 'remove-opt', type: 'button', title: 'Remove option', onclick: () => row.remove() }, '×'));
+  $('#nr-options').append(row);
+}
+
+function newRequestPayload() {
+  const project = $('#nr-project').value.trim();
+  const title = $('#nr-title').value.trim();
+  const ask = $('#nr-ask').value.trim();
+  const type = $('#nr-type').value;
+  if (!/^[a-z0-9-]+$/.test(project)) return { error: 'Project slug must be lowercase letters, digits, hyphens.' };
+  if (!title) return { error: 'Title is required.' };
+  if (!ask) return { error: 'Ask is required.' };
+
+  const payload = {
+    project,
+    title,
+    ask,
+    agent: $('#nr-agent').value.trim() || 'human',
+    urgency: $('#nr-urgency').value,
+    blocking: $('#nr-blocking').checked,
+    response: { type },
+  };
+  const background = $('#nr-background').value.split('\n').map((s) => s.trim()).filter(Boolean);
+  if (background.length) payload.background = background;
+  const tech = $('#nr-tech').value.split('\n').map((s) => s.trim()).filter(Boolean);
+  if (tech.length) payload.technical_context = tech;
+
+  if (OPTION_TYPES.includes(type)) {
+    const options = [];
+    for (const row of document.querySelectorAll('#nr-options .option-editor-row')) {
+      const key = row.querySelector('[data-role=key]').value.trim();
+      const label = row.querySelector('[data-role=label]').value.trim();
+      const desc = row.querySelector('[data-role=desc]').value.trim();
+      if (!key && !label && !desc) continue; // blank row
+      if (!key) return { error: 'Every option needs a key.' };
+      const opt = { key };
+      if (label) opt.label = label;
+      if (desc) opt.description = desc;
+      options.push(opt);
+    }
+    if (options.length === 0) return { error: `Response type "${type}" needs at least one option.` };
+    const keys = options.map((o) => o.key);
+    if (new Set(keys).size !== keys.length) return { error: 'Option keys must be unique.' };
+    payload.response.options = options;
+  }
+  return { payload };
+}
+
+async function submitNewRequest() {
+  const errBox = $('#nr-error');
+  const built = newRequestPayload();
+  if (built.error) {
+    errBox.textContent = built.error;
+    errBox.hidden = false;
+    return;
+  }
+  errBox.hidden = true;
+  const res = await api('/api/requests', built.payload);
+  if (!res.ok) {
+    errBox.textContent = apiErrorText(res, 'Creating the request');
+    errBox.hidden = false;
+    return;
+  }
+  $('#new-dialog').close();
+  toast('Request created.', 'ok');
+  await fetchState();
+  if (res.data.request && res.data.request.id) selectRequest(res.data.request.id);
+}
+
+function resetNewDialog() {
+  $('#nr-project').value = '';
+  $('#nr-agent').value = 'human';
+  $('#nr-title').value = '';
+  $('#nr-ask').value = '';
+  $('#nr-background').value = '';
+  $('#nr-tech').value = '';
+  $('#nr-urgency').value = 'medium';
+  $('#nr-type').value = 'choice';
+  $('#nr-blocking').checked = false;
+  $('#nr-error').hidden = true;
+  $('#nr-options').replaceChildren();
+  addOptionRow();
+  addOptionRow();
+  toggleOptionsField();
+}
+
+function toggleOptionsField() {
+  $('#nr-options-field').style.display = OPTION_TYPES.includes($('#nr-type').value) ? '' : 'none';
+}
+
+/* ========================= wiring ========================= */
+
+function renderAll() {
+  renderCounts();
+  renderList();
+  renderProblems();
+  syncDetail();
+}
+
+$('#tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-filter]');
+  if (!btn) return;
+  activeFilter = btn.dataset.filter;
+  for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('active', b === btn);
+  renderList();
+});
+
+$('#search').addEventListener('input', (e) => {
+  searchQuery = e.target.value.trim().toLowerCase();
+  renderList();
+});
+
+$('#btn-new').addEventListener('click', () => {
+  resetNewDialog();
+  $('#new-dialog').showModal();
+});
+$('#new-cancel').addEventListener('click', () => $('#new-dialog').close());
+$('#nr-add-option').addEventListener('click', () => addOptionRow());
+$('#nr-type').addEventListener('change', toggleOptionsField);
+$('#nr-submit').addEventListener('click', submitNewRequest);
+
+$('#back-btn').addEventListener('click', () => {
+  $('#main').classList.remove('show-detail');
+});
+
+fetchState();
+setInterval(fetchState, POLL_MS);
+</script>
+</body>
+</html>
