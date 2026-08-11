@@ -198,6 +198,9 @@
   }
   .row:hover { background: var(--panel-2); }
   .row.selected { background: var(--accent-soft); border-color: var(--accent); }
+  /* Per-project accent: --proj-h is set inline per element (stable hash of the
+     project slug), so the same project always renders the same hue. */
+  .row { box-shadow: inset 3px 0 0 hsl(var(--proj-h, 220) 55% 55% / .85); }
   .row-top { display: flex; align-items: baseline; gap: 8px; }
   .row-title {
     font-weight: 600;
@@ -217,7 +220,18 @@
     border-radius: 999px;
     text-transform: uppercase;
   }
-  .pill.project { background: var(--gray-soft); color: var(--text-dim); text-transform: none; font-size: 11.5px; font-weight: 560; }
+  .pill.project {
+    background: hsl(var(--proj-h, 220) 55% 45% / .12);
+    color: hsl(var(--proj-h, 220) 55% 34%);
+    text-transform: none; font-size: 11.5px; font-weight: 560;
+  }
+  @media (prefers-color-scheme: dark) {
+    .row { box-shadow: inset 3px 0 0 hsl(var(--proj-h, 220) 50% 62% / .85); }
+    .pill.project {
+      background: hsl(var(--proj-h, 220) 50% 62% / .16);
+      color: hsl(var(--proj-h, 220) 60% 75%);
+    }
+  }
   .pill.blocking { background: var(--red-soft); color: var(--red); }
   .pill.urg-high { background: var(--red-soft); color: var(--red); }
   .pill.urg-medium { background: var(--amber-soft); color: var(--amber); }
@@ -593,6 +607,16 @@ function h(tag, attrs, ...kids) {
 
 /* ========================= formatting ========================= */
 
+// Stable hue for a project slug: pure function of the slug, so the same
+// project gets the same color on every load. FNV-1a style hash -> 0..359.
+function projectHue(slug) {
+  let hash = 2166136261;
+  for (const ch of String(slug || '')) {
+    hash = ((hash ^ ch.codePointAt(0)) * 16777619) >>> 0;
+  }
+  return hash % 360;
+}
+
 function projectName(slug) {
   const p = state.projects && state.projects.projects && state.projects.projects[slug];
   return (p && typeof p.name === 'string' && p.name) ? p.name : slug;
@@ -806,6 +830,7 @@ function renderList() {
     badges.push(statusPill(r));
     const row = h('li', {
       class: `row${r.id === selectedId ? ' selected' : ''}`,
+      style: `--proj-h:${projectHue(r.project)}`,
       onclick: () => selectRequest(r.id),
     },
       h('div', { class: 'row-top' },
@@ -1092,7 +1117,7 @@ function renderDetail(req) {
     'This request changed on disk while you were typing. Submitting will overwrite; reselect it to reload.'));
 
   kids.push(h('div', { class: 'row-badges' },
-    h('span', { class: 'pill project' }, projectName(req.project)),
+    h('span', { class: 'pill project', style: `--proj-h:${projectHue(req.project)}` }, projectName(req.project)),
     req.status === 'open' && req.blocking === true ? h('span', { class: 'pill blocking' }, 'blocking') : null,
     ['high', 'medium', 'low'].includes(req.urgency) ? h('span', { class: `pill urg-${req.urgency}` }, req.urgency) : null,
     statusPill(req),
