@@ -198,8 +198,8 @@
   }
   .row:hover { background: var(--panel-2); }
   .row.selected { background: var(--accent-soft); border-color: var(--accent); }
-  /* Per-project accent: --proj-h is set inline per element (stable hash of the
-     project slug), so the same project always renders the same hue. */
+  /* Per-project accent: --proj-h is set inline per element (hue assigned from
+     the project slug, spread apart across the projects on the board). */
   .row { box-shadow: inset 3px 0 0 hsl(var(--proj-h, 220) 55% 55% / .85); }
   .row-top { display: flex; align-items: baseline; gap: 8px; }
   .row-title {
@@ -607,14 +607,56 @@ function h(tag, attrs, ...kids) {
 
 /* ========================= formatting ========================= */
 
-// Stable hue for a project slug: pure function of the slug, so the same
-// project gets the same color on every load. FNV-1a style hash -> 0..359.
+// Preferred hue for a project slug: pure function of the slug (FNV-1a style
+// hash -> 0..359). Used as the first choice by assignProjectHues below.
 function projectHue(slug) {
   let hash = 2166136261;
   for (const ch of String(slug || '')) {
     hash = ((hash ^ ch.codePointAt(0)) * 16777619) >>> 0;
   }
   return hash % 360;
+}
+
+function circularHueDist(a, b) {
+  const d = Math.abs(a - b) % 360;
+  return Math.min(d, 360 - d);
+}
+
+// Hues actually shown: each project's hashed hue, nudged so the projects
+// currently on the board stay well apart. Deterministic for a given set of
+// slugs (sorted walk, exhaustive scan) — same board, same colors, every load.
+let assignedHues = {};
+
+function assignProjectHues() {
+  const slugs = [...new Set((state.requests || []).map((r) => String(r.project || '')))].sort();
+  const minSep = Math.min(60, 360 / Math.max(slugs.length, 1));
+  const used = [];
+  const map = {};
+  for (const slug of slugs) {
+    const preferred = projectHue(slug);
+    let hue = preferred;
+    if (used.some((u) => circularHueDist(u, preferred) < minSep)) {
+      // Too close to a hue already on the board: take the hue that keeps
+      // everything maximally spread, tie-breaking toward the preferred hue.
+      let bestGap = -1;
+      for (let h = 0; h < 360; h++) {
+        const gap = Math.min(...used.map((u) => circularHueDist(u, h)));
+        if (gap > bestGap ||
+            (gap === bestGap && circularHueDist(h, preferred) < circularHueDist(hue, preferred))) {
+          bestGap = gap;
+          hue = h;
+        }
+      }
+    }
+    used.push(hue);
+    map[slug] = hue;
+  }
+  assignedHues = map;
+}
+
+function hueFor(slug) {
+  const key = String(slug || '');
+  return assignedHues[key] !== undefined ? assignedHues[key] : projectHue(key);
 }
 
 function projectName(slug) {
@@ -830,7 +872,7 @@ function renderList() {
     badges.push(statusPill(r));
     const row = h('li', {
       class: `row${r.id === selectedId ? ' selected' : ''}`,
-      style: `--proj-h:${projectHue(r.project)}`,
+      style: `--proj-h:${hueFor(r.project)}`,
       onclick: () => selectRequest(r.id),
     },
       h('div', { class: 'row-top' },
@@ -1117,7 +1159,7 @@ function renderDetail(req) {
     'This request changed on disk while you were typing. Submitting will overwrite; reselect it to reload.'));
 
   kids.push(h('div', { class: 'row-badges' },
-    h('span', { class: 'pill project', style: `--proj-h:${projectHue(req.project)}` }, projectName(req.project)),
+    h('span', { class: 'pill project', style: `--proj-h:${hueFor(req.project)}` }, projectName(req.project)),
     req.status === 'open' && req.blocking === true ? h('span', { class: 'pill blocking' }, 'blocking') : null,
     ['high', 'medium', 'low'].includes(req.urgency) ? h('span', { class: `pill urg-${req.urgency}` }, req.urgency) : null,
     statusPill(req),
@@ -1326,6 +1368,7 @@ function toggleOptionsField() {
 /* ========================= wiring ========================= */
 
 function renderAll() {
+  assignProjectHues();
   renderCounts();
   renderList();
   renderProblems();
