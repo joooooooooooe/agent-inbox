@@ -149,12 +149,17 @@ Traversal attempts (`..\..\..\Windows\system.ini`) fail the containment check.
 ## Cold start
 
 If Sublime is not already running, `--command` can fire before the application is listening,
-and the preview silently does not appear. The server checks whether `sublime_text.exe` is
-already running, then:
+and the preview silently does not appear. The server probes `tasklist` for
+`sublime_text.exe` before opening the file, then:
 
-- **running:** short delay (~250 ms) between the two spawns;
-- **not running:** longer delay (~2 s), and one retry of the `--command` call if the first
-  produces a non-zero exit.
+- **running:** a short settle delay (~250 ms) between the two spawns;
+- **not running:** poll `tasklist` every 250 ms until the process appears (ceiling ~10 s),
+  then a ~750 ms settle delay before sending the command.
+
+Polling rather than retrying the `--command` call is deliberate: `subl` gives no reliable
+signal that a command was received, so a retry could open two browser tabs. Waiting for the
+process to exist is observable and fires the command exactly once. If the probe budget is
+exhausted the command is sent anyway — a missing preview is a better failure than none.
 
 The verification run for this design had Sublime already open, so the cold path needs an
 explicit test on a closed editor.
