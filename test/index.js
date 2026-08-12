@@ -4,3 +4,4 @@
 // matched directory as a module instead of scanning it. Pulls in the suites.
 require('./store.test.js');
 require('./setup.test.js');
+require('./open-file.test.js');
