@@ -5,3 +5,4 @@
 require('./store.test.js');
 require('./setup.test.js');
 require('./open-file.test.js');
+require('./linkify.test.js');

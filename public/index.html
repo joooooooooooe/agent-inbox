@@ -282,6 +282,16 @@
     color: var(--text-faint);
   }
   .ask-text { font-size: 15px; }
+  .md-link {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    word-break: break-all;
+  }
+  .md-link:hover { text-decoration-thickness: 2px; }
+  .md-link.busy { opacity: .6; cursor: progress; }
+  .md-link.failed { color: var(--red); text-decoration-style: wavy; }
   .bullets { margin: 4px 0 0; padding-left: 20px; }
   .bullets li { margin: 3px 0; color: var(--text-dim); }
 
@@ -567,6 +577,7 @@
   </div>
 </dialog>
 
+<script src="/linkify.js"></script>
 <script>
 'use strict';
 
@@ -603,6 +614,52 @@ function h(tag, attrs, ...kids) {
     node.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
   }
   return node;
+}
+
+/* ================== markdown links in agent text ==================
+   Renders agent-authored text as DOM nodes, turning repo-relative markdown
+   paths into links. Returns an array of nodes — never an HTML string, per
+   the XSS invariant above. */
+
+function linkedText(str, requestId) {
+  return Linkify.splitMarkdownPaths(str).map((part) => {
+    if (part.type === 'text') return document.createTextNode(part.value);
+    return h('a', {
+      class: 'md-link',
+      href: '#',
+      title: `Open ${part.value} in Sublime Text and render it`,
+      onclick: (ev) => {
+        ev.preventDefault();
+        openMarkdown(requestId, part.value, ev.currentTarget);
+      },
+    }, part.value);
+  });
+}
+
+async function openMarkdown(requestId, filePath, anchor) {
+  const previous = anchor.textContent;
+  anchor.classList.add('busy');
+  try {
+    const res = await fetch('/api/open', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: requestId, path: filePath }),
+    });
+    if (!res.ok) {
+      let message = `Opening ${filePath} failed (${res.status})`;
+      try {
+        const parsed = await res.json();
+        if (parsed && parsed.error) message = parsed.error;
+      } catch (_) { /* keep the status-code message */ }
+      anchor.textContent = `${previous} — ${message}`;
+      anchor.classList.add('failed');
+    }
+  } catch (_) {
+    anchor.textContent = `${previous} — could not reach the inbox server`;
+    anchor.classList.add('failed');
+  } finally {
+    anchor.classList.remove('busy');
+  }
 }
 
 /* ========================= formatting ========================= */
@@ -933,11 +990,12 @@ function metaLine(req) {
     bits.join(' · '), ' · ', h('span', { class: 'id' }, req.id));
 }
 
-function bulletSection(title, items) {
+function bulletSection(title, items, requestId) {
   if (!Array.isArray(items) || items.length === 0) return null;
   return h('div', { class: 'section' },
     h('h3', {}, title),
-    h('ul', { class: 'bullets' }, items.map((s) => h('li', {}, String(s)))),
+    h('ul', { class: 'bullets' },
+      items.map((s) => h('li', {}, ...linkedText(String(s), requestId)))),
   );
 }
 
@@ -1047,7 +1105,7 @@ function technicalContextSection(req) {
   return h('div', { class: 'section' },
     h('details', { class: 'tech-notes' },
       h('summary', {}, `Agent-to-agent notes (technical) — ${req.technical_context.length}`),
-      h('ul', {}, req.technical_context.map((s) => h('li', {}, String(s)))),
+      h('ul', {}, req.technical_context.map((s) => h('li', {}, ...linkedText(String(s), req.id)))),
     ),
   );
 }
@@ -1169,10 +1227,10 @@ function renderDetail(req) {
 
   kids.push(h('div', { class: 'section' },
     h('h3', {}, 'Ask'),
-    h('div', { class: 'ask-text' }, req.ask || '(no ask text)'),
+    h('div', { class: 'ask-text' }, ...linkedText(req.ask || '(no ask text)', req.id)),
   ));
-  kids.push(bulletSection('Background', req.background));
-  kids.push(bulletSection('When answered, the agent will', req.on_answered));
+  kids.push(bulletSection('Background', req.background, req.id));
+  kids.push(bulletSection('When answered, the agent will', req.on_answered, req.id));
   kids.push(technicalContextSection(req));
 
   if (req.status === 'open') {

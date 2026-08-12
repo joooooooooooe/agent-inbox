@@ -9,6 +9,7 @@ const path = require('node:path');
 const os = require('node:os');
 
 const store = require('./lib/store');
+const openFile = require('./lib/open-file');
 
 const DATA_DIR = process.env.AGENT_INBOX_DATA_DIR || path.join(os.homedir(), '.agent-inbox');
 const PORT = Number(process.env.AGENT_INBOX_PORT) || 7717;
@@ -83,6 +84,21 @@ function readBody(req, res, onDone) {
   });
 }
 
+function serveStatic(res, filePath, contentType) {
+  let body;
+  try {
+    body = fs.readFileSync(filePath);
+  } catch (err) {
+    return sendJson(res, 404, { error: `not found: ${path.basename(filePath)}` });
+  }
+  res.writeHead(200, {
+    'Content-Type': contentType,
+    'Content-Length': body.length,
+    'Cache-Control': 'no-store',
+  });
+  return res.end(body);
+}
+
 function serveIndex(res) {
   let html;
   try {
@@ -99,6 +115,15 @@ function serveIndex(res) {
 }
 
 function handlePost(pathname, body, res) {
+  if (pathname === '/api/open') {
+    // Resolution is synchronous so a bad path still answers 400/404. Only the
+    // launch is detached — the browser should not wait on a cold editor start.
+    const abs = openFile.resolveMarkdownPath(DATA_DIR, body.id, body.path);
+    openFile.launchEditor(abs).catch((err) => {
+      console.error(`[agent-inbox] launching the editor failed: ${err.message}`);
+    });
+    return sendJson(res, 200, { ok: true, path: abs });
+  }
   if (pathname === '/api/requests') {
     const request = store.createRequest(DATA_DIR, body);
     return sendJson(res, 201, { request });
@@ -143,6 +168,13 @@ const server = http.createServer((req, res) => {
 
     if (req.method === 'GET' || req.method === 'HEAD') {
       if (pathname === '/' || pathname === '/index.html') return serveIndex(res);
+      if (pathname === '/linkify.js') {
+        return serveStatic(
+          res,
+          path.join(__dirname, 'public', 'linkify.js'),
+          'application/javascript; charset=utf-8',
+        );
+      }
       if (pathname === '/api/state') return sendJson(res, 200, store.getState(DATA_DIR));
       if (pathname.startsWith('/api/')) return sendJson(res, 404, { error: 'not found' });
       return sendJson(res, 404, { error: 'not found' });
