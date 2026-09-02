@@ -582,7 +582,6 @@
       <div class="doc-path" id="doc-path"></div>
     </div>
     <div class="doc-head-actions">
-      <button class="btn small" id="doc-open-editor" type="button" hidden>Open in editor</button>
       <button class="btn small" id="doc-close" type="button">Close</button>
     </div>
   </div>
@@ -774,10 +773,6 @@ function renderBlocks(blocks) {
   }).filter(Boolean);
 }
 
-// The document currently on screen, so the "Open in editor" button knows what
-// it is being asked to open.
-let openDoc = null;
-
 async function openMarkdown(requestId, filePath, anchor) {
   const previous = anchor.textContent;
   anchor.classList.add('busy');
@@ -790,14 +785,13 @@ async function openMarkdown(requestId, filePath, anchor) {
     }
     anchor.classList.remove('failed');
     anchor.textContent = previous;
-    showDoc(requestId, filePath, res.data);
+    showDoc(filePath, res.data);
   } finally {
     anchor.classList.remove('busy');
   }
 }
 
-function showDoc(requestId, filePath, data) {
-  openDoc = { requestId, filePath };
+function showDoc(filePath, data) {
   $('#doc-title').textContent = filePath;
   $('#doc-path').textContent = data.path || '';
 
@@ -814,21 +808,8 @@ function showDoc(requestId, filePath, data) {
     content.append(h('div', { class: 'doc-empty' }, 'This file is empty.'));
   }
 
-  // The button only exists for someone who has configured an editor; with no
-  // AGENT_INBOX_OPEN_CMD set, the inbox never offers to spawn anything.
-  const openBtn = $('#doc-open-editor');
-  openBtn.hidden = !data.editor;
-  if (data.editor) openBtn.title = `Open with ${data.editor}`;
-
   $('#doc-dialog').showModal();
   content.parentElement.scrollTop = 0; // always open at the top of the document
-}
-
-async function openInEditor() {
-  if (!openDoc) return;
-  const res = await api('/api/open', { id: openDoc.requestId, path: openDoc.filePath });
-  if (!res.ok) toast(apiErrorText(res, 'open that file in your editor'), 'error');
-  else toast(`Opening ${openDoc.filePath} in ${res.data.opened_with}.`);
 }
 
 /* ========================= formatting ========================= */
@@ -1621,7 +1602,6 @@ $('#btn-new').addEventListener('click', () => {
 });
 $('#new-cancel').addEventListener('click', () => $('#new-dialog').close());
 $('#doc-close').addEventListener('click', () => $('#doc-dialog').close());
-$('#doc-open-editor').addEventListener('click', openInEditor);
 $('#nr-add-option').addEventListener('click', () => addOptionRow());
 $('#nr-type').addEventListener('change', toggleOptionsField);
 $('#nr-submit').addEventListener('click', submitNewRequest);

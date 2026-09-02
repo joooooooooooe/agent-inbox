@@ -1,5 +1,9 @@
 # Clickable Markdown Links Implementation Plan
 
+> **Superseded (2026-09-01).** Task 3's `POST /api/open` route and the Sublime launcher no
+> longer exist: documents are rendered in the app instead. The path resolution and its tests
+> live on in `lib/documents.js`. Kept as the record of how this was built.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make markdown paths written by agents in request cards clickable, so one click opens the file in Sublime Text and renders it in the browser.

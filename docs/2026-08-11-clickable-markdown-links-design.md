@@ -1,5 +1,12 @@
 # Clickable markdown links in request cards
 
+> **Superseded (2026-09-01).** The approach described here — a `POST /api/open` route that
+> launched Sublime Text to render the document — has been replaced. The inbox now renders
+> linked documents itself, in the app, on any platform, and the server launches no external
+> program at all. The path-resolution boundary designed here survives essentially unchanged in
+> `lib/documents.js`; only the "and then open it in an editor" half is gone. Kept as the record
+> of a decision that was later reversed.
+
 Agents routinely name a markdown file in a request card. Today that filename is inert text, so
 acting on it means hunting through the project's folder tree by hand. This design makes those
 references clickable: one click opens the file in Sublime Text and renders it in the browser,

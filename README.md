@@ -81,10 +81,9 @@ half-remember, and it means the inbox never has to shell out to an editor to be 
 
 ![A design document rendered inside the inbox](docs/images/document.png)
 
-Rendering is a small parser in [`public/markdown.js`](public/markdown.js) with no dependencies.
-If you would rather open documents in your own editor, set `AGENT_INBOX_OPEN_CMD` and an
-**Open in editor** button appears. It is unset by default, and with it unset the server never
-launches a process at all.
+Rendering is a small parser in [`public/markdown.js`](public/markdown.js) with no
+dependencies. Doing it in the app rather than shelling out to an editor is also what lets the
+server contain no process-launching code at all — see below.
 
 ## Install it for real
 
@@ -111,7 +110,6 @@ browser in one step; on macOS and Linux, `./start-inbox.sh` does the same.
 |---|---|---|
 | `AGENT_INBOX_PORT` | `7717` | Listen port |
 | `AGENT_INBOX_DATA_DIR` | `~/.agent-inbox` | Where the data store lives |
-| `AGENT_INBOX_OPEN_CMD` | unset | A program to open documents in. Unset means the server spawns nothing. |
 
 ### Register your projects
 
@@ -156,8 +154,9 @@ It is a local web server that reads and writes files, so the boundaries are wort
 - **Documents are resolved inside the requesting project's own repository**, must be markdown,
   must already exist, and are size-capped. A path that escapes the repo is refused, including
   the case of a sibling directory whose name merely starts with the repo's name.
-- **No process is launched** unless `AGENT_INBOX_OPEN_CMD` is set. When it is, the file path is
-  passed as a single argument and never through a shell.
+- **The server launches no processes.** There is no code path from an HTTP request to an
+  executable — the app renders documents itself rather than handing them to another program,
+  so the usual "local server that can start things" risk does not exist here.
 - **Nothing is rendered as HTML.** Agent-authored text and document contents alike become DOM
   text nodes; the markdown parser emits data, never markup, so a document cannot inject script.
 - Request bodies are capped at 1 MB, request ids are validated before any filesystem access,
@@ -211,7 +210,6 @@ Localhost only. POSTs require `Content-Type: application/json`.
 | `/api/requests/<id>/status` | POST | `{ status, superseded_by?, returned_reason? }` — reopen, withdraw, supersede, or return for rewrite |
 | `/api/requests/<id>/archive` | POST | File a settled question away |
 | `/api/file` | POST | `{ id, path }` — read a markdown document from that question's repo |
-| `/api/open` | POST | `{ id, path }` — hand it to `AGENT_INBOX_OPEN_CMD`; `400` if unset |
 
 ## How this was built
 

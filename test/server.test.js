@@ -341,9 +341,6 @@ test('a document inside the project repo is read and returned', async () => {
   assert.strictEqual(res.status, 200);
   assert.match(res.json.markdown, /# A design note/);
   assert.strictEqual(res.json.path, path.join(repoDir, 'docs', 'note.md'));
-  // No editor is configured in the test environment, so the app knows not to
-  // offer to launch one.
-  assert.strictEqual(res.json.editor, null);
 });
 
 test('reading refuses to escape the project repo, or to read non-markdown', async () => {
@@ -359,22 +356,6 @@ test('reading refuses to escape the project repo, or to read non-markdown', asyn
     const res = await postJson('/api/file', { id, path: bad });
     assert.ok(res.status === 400 || res.status === 404, `"${bad}" must be refused, got ${res.status}`);
   }
-});
-
-test('launching an external editor is refused when none is configured', async () => {
-  // The server spawns nothing unless AGENT_INBOX_OPEN_CMD names a program,
-  // so the default posture of a fresh clone is "no process launching at all".
-  const created = await postJson('/api/requests', {
-    project: 'demo',
-    title: 'Points at a doc',
-    ask: 'Anything.',
-    response: { type: 'approval' },
-  });
-  const { id } = created.json.request;
-
-  const res = await postJson('/api/open', { id, path: 'docs/note.md' });
-  assert.strictEqual(res.status, 400);
-  assert.match(res.json.error, /AGENT_INBOX_OPEN_CMD/);
 });
 
 test('GET /markdown.js serves the renderer the page needs', async () => {

@@ -9,7 +9,7 @@ const path = require('node:path');
 const os = require('node:os');
 
 const store = require('./lib/store');
-const openFile = require('./lib/open-file');
+const documents = require('./lib/documents');
 
 const DATA_DIR = process.env.AGENT_INBOX_DATA_DIR || path.join(os.homedir(), '.agent-inbox');
 const PORT = Number(process.env.AGENT_INBOX_PORT) || 7717;
@@ -119,15 +119,7 @@ function handlePost(pathname, body, res) {
     // Read a document a card links to, so the app can render it in place.
     // resolveMarkdownPath is the boundary: repo-relative, inside that card's
     // own repo, markdown only.
-    const file = openFile.readMarkdown(DATA_DIR, body.id, body.path);
-    return sendJson(res, 200, { ...file, editor: openFile.configuredEditor() });
-  }
-  if (pathname === '/api/open') {
-    // Optional: hand the file to an external program. Unconfigured by
-    // default, so the usual path spawns nothing at all.
-    const abs = openFile.resolveMarkdownPath(DATA_DIR, body.id, body.path);
-    const { cmd } = openFile.launchEditor(abs);
-    return sendJson(res, 200, { ok: true, path: abs, opened_with: cmd });
+    return sendJson(res, 200, documents.readMarkdown(DATA_DIR, body.id, body.path));
   }
   if (pathname === '/api/requests') {
     const request = store.createRequest(DATA_DIR, body);
