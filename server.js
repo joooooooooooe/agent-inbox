@@ -115,14 +115,19 @@ function serveIndex(res) {
 }
 
 function handlePost(pathname, body, res) {
+  if (pathname === '/api/file') {
+    // Read a document a card links to, so the app can render it in place.
+    // resolveMarkdownPath is the boundary: repo-relative, inside that card's
+    // own repo, markdown only.
+    const file = openFile.readMarkdown(DATA_DIR, body.id, body.path);
+    return sendJson(res, 200, { ...file, editor: openFile.configuredEditor() });
+  }
   if (pathname === '/api/open') {
-    // Resolution is synchronous so a bad path still answers 400/404. Only the
-    // launch is detached — the browser should not wait on a cold editor start.
+    // Optional: hand the file to an external program. Unconfigured by
+    // default, so the usual path spawns nothing at all.
     const abs = openFile.resolveMarkdownPath(DATA_DIR, body.id, body.path);
-    openFile.launchEditor(abs).catch((err) => {
-      console.error(`[agent-inbox] launching the editor failed: ${err.message}`);
-    });
-    return sendJson(res, 200, { ok: true, path: abs });
+    const { cmd } = openFile.launchEditor(abs);
+    return sendJson(res, 200, { ok: true, path: abs, opened_with: cmd });
   }
   if (pathname === '/api/requests') {
     const request = store.createRequest(DATA_DIR, body);
@@ -166,12 +171,24 @@ const server = http.createServer((req, res) => {
   try {
     const pathname = String(req.url || '/').split('?')[0];
 
+    // Every /api/ route — reads included — is Host-gated. Binding 127.0.0.1
+    // stops remote connections but not DNS rebinding: a page on a domain the
+    // attacker points at 127.0.0.1 becomes same-origin and can read responses.
+    // Without this, such a page could GET the whole inbox (every question,
+    // answer, and the repo paths in projects.json). A real browser cannot
+    // forge Host, so checking it is what closes the hole.
+    if (pathname.startsWith('/api/') && !hostAllowed(req)) {
+      return sendJson(res, 403, { error: 'forbidden: unexpected Host header' });
+    }
+
     if (req.method === 'GET' || req.method === 'HEAD') {
       if (pathname === '/' || pathname === '/index.html') return serveIndex(res);
-      if (pathname === '/linkify.js') {
+      // The two browser modules that are also unit-tested under node, so they
+      // cannot live inline in the page.
+      if (pathname === '/linkify.js' || pathname === '/markdown.js') {
         return serveStatic(
           res,
-          path.join(__dirname, 'public', 'linkify.js'),
+          path.join(__dirname, 'public', pathname.slice(1)),
           'application/javascript; charset=utf-8',
         );
       }
@@ -181,9 +198,6 @@ const server = http.createServer((req, res) => {
     }
 
     if (req.method === 'POST' && pathname.startsWith('/api/')) {
-      if (!hostAllowed(req)) {
-        return sendJson(res, 403, { error: 'forbidden: unexpected Host header' });
-      }
       if (!contentTypeIsJson(req)) {
         return sendJson(res, 415, { error: 'Content-Type must be application/json' });
       }
@@ -209,6 +223,25 @@ const server = http.createServer((req, res) => {
   } catch (err) {
     sendError(res, err);
   }
+});
+
+// A port clash is the one startup failure that is both likely and benign
+// (the inbox is usually already running). Say so in one line instead of
+// throwing a stack trace at someone who just double-clicked the launcher.
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(
+      `Agent Inbox is already running at http://${HOST}:${PORT} — open that, or set ` +
+      'AGENT_INBOX_PORT to use a different port.',
+    );
+    process.exit(1);
+  }
+  if (err.code === 'EACCES') {
+    console.error(`Not allowed to listen on port ${PORT}. Set AGENT_INBOX_PORT to a port above 1024.`);
+    process.exit(1);
+  }
+  console.error(`Agent Inbox could not start: ${err.message}`);
+  process.exit(1);
 });
 
 server.listen(PORT, HOST, () => {

@@ -292,6 +292,75 @@
   .md-link:hover { text-decoration-thickness: 2px; }
   .md-link.busy { opacity: .6; cursor: progress; }
   .md-link.failed { color: var(--red); text-decoration-style: wavy; }
+
+  /* ---------- rendered document ---------- */
+  #doc-dialog { width: min(880px, calc(100vw - 32px)); }
+  .doc-path {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 400;
+    color: var(--text-faint);
+    word-break: break-all;
+    margin-top: 2px;
+  }
+  .doc-head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .doc-body { padding: 4px 24px 24px; overflow-y: auto; max-height: calc(100vh - 160px); }
+  .doc { font-size: 14px; line-height: 1.65; color: var(--text); }
+  .doc > :first-child { margin-top: 8px; }
+  .doc h1, .doc h2, .doc h3, .doc h4, .doc h5, .doc h6 {
+    line-height: 1.3;
+    margin: 22px 0 8px;
+    font-weight: 660;
+  }
+  .doc h1 { font-size: 21px; }
+  .doc h2 { font-size: 17.5px; padding-bottom: 5px; border-bottom: 1px solid var(--border); }
+  .doc h3 { font-size: 15px; }
+  .doc h4, .doc h5, .doc h6 { font-size: 13.5px; color: var(--text-dim); }
+  .doc p { margin: 9px 0; }
+  .doc ul, .doc ol { margin: 9px 0; padding-left: 24px; }
+  .doc li { margin: 3px 0; }
+  .doc li > ul, .doc li > ol { margin: 3px 0; }
+  .doc blockquote {
+    margin: 12px 0;
+    padding: 2px 0 2px 14px;
+    border-left: 3px solid var(--border);
+    color: var(--text-dim);
+  }
+  .doc hr { border: 0; border-top: 1px solid var(--border); margin: 20px 0; }
+  .doc code {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    background: var(--gray-soft);
+    padding: 1px 5px;
+    border-radius: 5px;
+  }
+  .doc pre {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    overflow-x: auto;
+    margin: 12px 0;
+  }
+  .doc pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.55; }
+  .doc a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+  .doc .table-scroll { overflow-x: auto; margin: 12px 0; }
+  .doc table { border-collapse: collapse; font-size: 13px; }
+  .doc th, .doc td {
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .doc th { background: var(--panel-2); font-weight: 620; }
+  .doc-empty { color: var(--text-faint); padding: 20px 0; }
+  .doc-error {
+    color: var(--red);
+    background: var(--red-soft);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin: 12px 0;
+  }
   .bullets { margin: 4px 0 0; padding-left: 20px; }
   .bullets li { margin: 3px 0; color: var(--text-dim); }
 
@@ -506,6 +575,20 @@
 
 <div id="toasts"></div>
 
+<dialog id="doc-dialog">
+  <div class="dialog-head">
+    <div>
+      <div id="doc-title">Document</div>
+      <div class="doc-path" id="doc-path"></div>
+    </div>
+    <div class="doc-head-actions">
+      <button class="btn small" id="doc-open-editor" type="button" hidden>Open in editor</button>
+      <button class="btn small" id="doc-close" type="button">Close</button>
+    </div>
+  </div>
+  <div class="doc-body"><div class="doc" id="doc-content"></div></div>
+</dialog>
+
 <dialog id="new-dialog">
   <div class="dialog-head">
     <span>New request</span>
@@ -578,6 +661,7 @@
 </dialog>
 
 <script src="/linkify.js"></script>
+<script src="/markdown.js"></script>
 <script>
 'use strict';
 
@@ -627,7 +711,7 @@ function linkedText(str, requestId) {
     return h('a', {
       class: 'md-link',
       href: '#',
-      title: `Open ${part.value} in Sublime Text and render it`,
+      title: `Read ${part.value}`,
       onclick: (ev) => {
         ev.preventDefault();
         openMarkdown(requestId, part.value, ev.currentTarget);
@@ -636,30 +720,115 @@ function linkedText(str, requestId) {
   });
 }
 
+/* ================== rendered markdown ==================
+   Markdown.parse produces plain tokens; this turns them into elements with
+   the same h() helper as everything else. No HTML string is built at any
+   point, so a document cannot inject markup into the page. */
+
+function renderInline(nodes) {
+  return nodes.map((node) => {
+    if (node.type === 'text') return document.createTextNode(node.value);
+    if (node.type === 'code') return h('code', null, node.value);
+    if (node.type === 'strong') return h('strong', null, renderInline(node.children));
+    if (node.type === 'em') return h('em', null, renderInline(node.children));
+    if (node.type === 'strike') return h('s', null, renderInline(node.children));
+    if (node.type === 'link') {
+      // Only http(s) and anchors become real links. Anything else — above all
+      // javascript: — is shown as plain text instead of being made clickable.
+      const href = String(node.href || '');
+      const safe = /^(https?:\/\/|#|mailto:)/i.test(href);
+      if (!safe) return h('span', null, renderInline(node.children));
+      return h('a', { href, target: '_blank', rel: 'noopener noreferrer' },
+        renderInline(node.children));
+    }
+    return document.createTextNode('');
+  });
+}
+
+function renderBlocks(blocks) {
+  return blocks.map((block) => {
+    switch (block.type) {
+      case 'heading':
+        return h(`h${Math.min(6, Math.max(1, block.level))}`, null, renderInline(block.inline));
+      case 'paragraph':
+        return h('p', null, renderInline(block.inline));
+      case 'code':
+        return h('pre', null, h('code', null, block.value));
+      case 'hr':
+        return h('hr');
+      case 'quote':
+        return h('blockquote', null, renderBlocks(block.blocks));
+      case 'list':
+        return h(block.ordered ? 'ol' : 'ul', null, block.items.map(
+          (item) => h('li', null, renderInline(item.inline), renderBlocks(item.children)),
+        ));
+      case 'table':
+        return h('div', { class: 'table-scroll' }, h('table', null,
+          h('thead', null, h('tr', null, block.header.map((c) => h('th', null, renderInline(c))))),
+          h('tbody', null, block.rows.map(
+            (row) => h('tr', null, row.map((c) => h('td', null, renderInline(c)))),
+          ))));
+      default:
+        return null;
+    }
+  }).filter(Boolean);
+}
+
+// The document currently on screen, so the "Open in editor" button knows what
+// it is being asked to open.
+let openDoc = null;
+
 async function openMarkdown(requestId, filePath, anchor) {
   const previous = anchor.textContent;
   anchor.classList.add('busy');
   try {
-    const res = await fetch('/api/open', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: requestId, path: filePath }),
-    });
+    const res = await api('/api/file', { id: requestId, path: filePath });
     if (!res.ok) {
-      let message = `Opening ${filePath} failed (${res.status})`;
-      try {
-        const parsed = await res.json();
-        if (parsed && parsed.error) message = parsed.error;
-      } catch (_) { /* keep the status-code message */ }
-      anchor.textContent = `${previous} — ${message}`;
+      anchor.textContent = `${previous} — ${apiErrorText(res, `open ${filePath}`)}`;
       anchor.classList.add('failed');
+      return;
     }
-  } catch (_) {
-    anchor.textContent = `${previous} — could not reach the inbox server`;
-    anchor.classList.add('failed');
+    anchor.classList.remove('failed');
+    anchor.textContent = previous;
+    showDoc(requestId, filePath, res.data);
   } finally {
     anchor.classList.remove('busy');
   }
+}
+
+function showDoc(requestId, filePath, data) {
+  openDoc = { requestId, filePath };
+  $('#doc-title').textContent = filePath;
+  $('#doc-path').textContent = data.path || '';
+
+  const content = $('#doc-content');
+  content.replaceChildren();
+  let blocks = [];
+  try {
+    blocks = renderBlocks(Markdown.parse(data.markdown));
+  } catch (err) {
+    content.append(h('div', { class: 'doc-error' }, `Could not render this document: ${err.message}`));
+  }
+  if (blocks.length > 0) content.append(...blocks);
+  else if (content.childNodes.length === 0) {
+    content.append(h('div', { class: 'doc-empty' }, 'This file is empty.'));
+  }
+
+  // The button only exists for someone who has configured an editor; with no
+  // AGENT_INBOX_OPEN_CMD set, the inbox never offers to spawn anything.
+  const openBtn = $('#doc-open-editor');
+  openBtn.hidden = !data.editor;
+  if (data.editor) openBtn.title = `Open with ${data.editor}`;
+
+  $('#doc-dialog').showModal();
+  content.parentElement.scrollTop = 0; // always open at the top of the document
+}
+
+async function openInEditor() {
+  if (!openDoc) return;
+  const res = await api('/api/open', { id: openDoc.requestId, path: openDoc.filePath });
+  if (!res.ok) toast(apiErrorText(res, 'open that file in your editor'), 'error');
+  else toast(`Opening ${openDoc.filePath} in ${res.data.opened_with}.`);
 }
 
 /* ========================= formatting ========================= */
@@ -1451,6 +1620,8 @@ $('#btn-new').addEventListener('click', () => {
   $('#new-dialog').showModal();
 });
 $('#new-cancel').addEventListener('click', () => $('#new-dialog').close());
+$('#doc-close').addEventListener('click', () => $('#doc-dialog').close());
+$('#doc-open-editor').addEventListener('click', openInEditor);
 $('#nr-add-option').addEventListener('click', () => addOptionRow());
 $('#nr-type').addEventListener('change', toggleOptionsField);
 $('#nr-submit').addEventListener('click', submitNewRequest);
