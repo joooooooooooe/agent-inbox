@@ -62,6 +62,22 @@ If the answer is no, the request does not conform.
 - The app runs an advisory clarity lint over the human-facing fields (paths, `§`, ID
   patterns, backticked code, over-long asks) and flags offenders to the operator.
 
+**Point at a section, not a document.** Any repo-relative markdown path you write becomes a
+link that renders the document inside the app. Add `#<section>` and it opens at that heading:
+
+```
+docs/2026-08-16-project-tracking-design.md#the-recommendation-up-front
+```
+
+The section name is the heading's text, lowercased, punctuation dropped, spaces turned into
+hyphens — the same rule GitHub uses, so the anchor you would write for GitHub already works.
+Repeated headings get `-1`, `-2` in document order. A path that names a section that does not
+exist still opens the document, from the top.
+
+Prefer the precise reference. "The tradeoff is set out in
+`docs/plan.md#storage-format`" costs you nothing and saves the operator hunting through a
+long document for the paragraph you meant. Paths belong in `technical_context`, as always.
+
 **Worked example — BAD, then GOOD.**
 
 BAD (this really happened; do not file this):

@@ -9,10 +9,11 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.Linkify = api;
 }(typeof self !== 'undefined' ? self : this, function () {
-  // A path is two or more segments joined by / or \, ending in .md.
+  // A path is two or more segments joined by / or \, ending in .md, with an
+  // optional #section pointing at a heading inside it.
   // Requiring a separator keeps bare filenames (STATE.md) out: the protocol
   // requires repo-relative paths, and a bare name could not be resolved.
-  const MD_PATH_RE = /(?:[A-Za-z]:)?[\w.~-]+(?:[\\/][\w.~-]+)+\.md(?![\w])/gi;
+  const MD_PATH_RE = /(?:[A-Za-z]:)?[\w.~-]+(?:[\\/][\w.~-]+)+\.md(?:#[\w-]+)?(?![\w])/gi;
 
   function splitMarkdownPaths(input) {
     const text = typeof input === 'string' ? input : '';

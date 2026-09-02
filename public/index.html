@@ -312,6 +312,7 @@
     margin: 22px 0 8px;
     font-weight: 660;
   }
+  .doc h1, .doc h2, .doc h3, .doc h4, .doc h5, .doc h6 { scroll-margin-top: 10px; }
   .doc h1 { font-size: 21px; }
   .doc h2 { font-size: 17.5px; padding-bottom: 5px; border-bottom: 1px solid var(--border); }
   .doc h3 { font-size: 15px; }
@@ -353,6 +354,35 @@
     vertical-align: top;
   }
   .doc th { background: var(--panel-2); font-weight: 620; }
+  /* The affordance for grabbing a link to a section: out of the way until you
+     want it, which is when the pointer is on the heading. */
+  .doc-anchor {
+    margin-left: 8px;
+    font-size: .8em;
+    font-weight: 400;
+    color: var(--text-faint);
+    text-decoration: none;
+    opacity: 0;
+    transition: opacity .12s ease-in-out;
+  }
+  .doc h1:hover .doc-anchor,
+  .doc h2:hover .doc-anchor,
+  .doc h3:hover .doc-anchor,
+  .doc h4:hover .doc-anchor,
+  .doc h5:hover .doc-anchor,
+  .doc h6:hover .doc-anchor,
+  .doc-anchor:focus-visible { opacity: 1; }
+  .doc-anchor:hover { color: var(--accent); }
+  /* Landing on a section from a link: say where you ended up, then get out of
+     the way. */
+  @keyframes doc-target-flash {
+    from { background: var(--accent-soft); }
+    to { background: transparent; }
+  }
+  .doc-target {
+    animation: doc-target-flash 1.8s ease-out;
+    border-radius: 6px;
+  }
   .doc-empty { color: var(--text-faint); padding: 20px 0; }
   .doc-error {
     color: var(--red);
@@ -732,11 +762,22 @@ function renderInline(nodes) {
     if (node.type === 'em') return h('em', null, renderInline(node.children));
     if (node.type === 'strike') return h('s', null, renderInline(node.children));
     if (node.type === 'link') {
-      // Only http(s) and anchors become real links. Anything else — above all
-      // javascript: — is shown as plain text instead of being made clickable.
       const href = String(node.href || '');
-      const safe = /^(https?:\/\/|#|mailto:)/i.test(href);
-      if (!safe) return h('span', null, renderInline(node.children));
+      // A link into the same document moves the panel rather than the page:
+      // this is a modal, so following a real #href would scroll the app
+      // underneath it and leave a stray fragment in the address bar.
+      if (href.startsWith('#')) {
+        return h('a', {
+          class: 'doc-inline-anchor',
+          href: '#',
+          onclick: (ev) => { ev.preventDefault(); goToSection(href.slice(1)); },
+        }, renderInline(node.children));
+      }
+      // Otherwise only http(s) and mailto become real links. Anything else —
+      // above all javascript: — is shown as plain text, not made clickable.
+      if (!/^(https?:\/\/|mailto:)/i.test(href)) {
+        return h('span', null, renderInline(node.children));
+      }
       return h('a', { href, target: '_blank', rel: 'noopener noreferrer' },
         renderInline(node.children));
     }
@@ -748,7 +789,18 @@ function renderBlocks(blocks) {
   return blocks.map((block) => {
     switch (block.type) {
       case 'heading':
-        return h(`h${Math.min(6, Math.max(1, block.level))}`, null, renderInline(block.inline));
+        return h(
+          `h${Math.min(6, Math.max(1, block.level))}`,
+          { id: SECTION_ID_PREFIX + block.slug },
+          renderInline(block.inline),
+          h('a', {
+            class: 'doc-anchor',
+            href: '#',
+            title: 'Copy a link to this section',
+            'aria-label': 'Copy a link to this section',
+            onclick: (ev) => { ev.preventDefault(); copySectionLink(block.slug); },
+          }, '#'),
+        );
       case 'paragraph':
         return h('p', null, renderInline(block.inline));
       case 'code':
@@ -773,7 +825,61 @@ function renderBlocks(blocks) {
   }).filter(Boolean);
 }
 
-async function openMarkdown(requestId, filePath, anchor) {
+// Heading ids are prefixed so a document can never collide with an id the app
+// itself uses.
+const SECTION_ID_PREFIX = 'doc-sec-';
+
+// "docs/design.md#the-recommendation" -> ["docs/design.md", "the-recommendation"].
+// The fragment is a view concern and never reaches the server: only the path
+// is sent, so the filesystem boundary sees exactly what it saw before.
+function splitSection(reference) {
+  const hash = String(reference).indexOf('#');
+  return hash === -1
+    ? { path: reference, section: null }
+    : { path: reference.slice(0, hash), section: reference.slice(hash + 1) };
+}
+
+function goToSection(slug) {
+  const el = document.getElementById(SECTION_ID_PREFIX + slug);
+  if (!el) return false;
+  const scroller = $('.doc-body');
+  if (scroller) {
+    // Measured against the scroll container rather than via scrollIntoView:
+    // the thing that scrolls is this panel, not the page, and scrollIntoView
+    // inside a <dialog> does not reliably agree about which that is.
+    const delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    // Assigned directly, and deliberately not animated: a section can be ten
+    // thousand pixels down, and smooth-scrolling that far is slower and more
+    // disorienting than arriving. The flash below is what orients the reader.
+    scroller.scrollTop = Math.max(0, scroller.scrollTop + delta - 12);
+  }
+  // Restart the flash even when the same heading is targeted twice.
+  el.classList.remove('doc-target');
+  void el.offsetWidth;
+  el.classList.add('doc-target');
+  return true;
+}
+
+// The reference this produces is exactly what an agent would write in a
+// request, which is the point: it is a way to hand someone a section.
+async function copySectionLink(slug) {
+  const reference = `${openDocPath}#${slug}`;
+  try {
+    await navigator.clipboard.writeText(reference);
+    toast(`Copied ${reference}`);
+  } catch (_) {
+    // Clipboard access can be refused; showing the reference still lets it be
+    // copied by hand.
+    toast(reference);
+  }
+  goToSection(slug);
+}
+
+// The document on screen, so a copied section link can name it.
+let openDocPath = null;
+
+async function openMarkdown(requestId, reference, anchor) {
+  const { path: filePath, section } = splitSection(reference);
   const previous = anchor.textContent;
   anchor.classList.add('busy');
   try {
@@ -785,13 +891,14 @@ async function openMarkdown(requestId, filePath, anchor) {
     }
     anchor.classList.remove('failed');
     anchor.textContent = previous;
-    showDoc(filePath, res.data);
+    showDoc(filePath, res.data, section);
   } finally {
     anchor.classList.remove('busy');
   }
 }
 
-function showDoc(filePath, data) {
+function showDoc(filePath, data, section = null) {
+  openDocPath = filePath;
   $('#doc-title').textContent = filePath;
   $('#doc-path').textContent = data.path || '';
 
@@ -809,7 +916,13 @@ function showDoc(filePath, data) {
   }
 
   $('#doc-dialog').showModal();
-  content.parentElement.scrollTop = 0; // always open at the top of the document
+  content.parentElement.scrollTop = 0; // open at the top unless told otherwise
+
+  // Scrolling happens after showModal, because an element inside a closed
+  // dialog has no layout to scroll to.
+  if (section && !goToSection(section)) {
+    toast(`This document has no section called "${section}" — showing it from the top.`, 'warn');
+  }
 }
 
 /* ========================= formatting ========================= */

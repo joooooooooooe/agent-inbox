@@ -251,3 +251,45 @@ test('a wrapped bullet still nests correctly', () => {
   assert.equal(text(list.items[0].inline), 'outer wrapping onto a second line');
   assert.equal(list.items[0].children.length, 1);
 });
+
+// ---------------------------------------------------------------------------
+// Heading slugs — what section links point at
+// ---------------------------------------------------------------------------
+
+test('slugify follows the rule an agent writing a link would assume', () => {
+  assert.equal(md.slugify('The recommendation, up front'), 'the-recommendation-up-front');
+  assert.equal(md.slugify('Front matter — the complete field list'), 'front-matter-the-complete-field-list');
+  assert.equal(md.slugify('  Spaced  out  '), 'spaced-out');
+  assert.equal(md.slugify('Kinds — two, not three'), 'kinds-two-not-three');
+  assert.equal(md.slugify('snake_case_heading'), 'snake-case-heading');
+});
+
+test('a heading with no usable characters still gets an id', () => {
+  assert.equal(md.slugify('!!!'), 'section');
+  assert.equal(md.slugify(''), 'section');
+});
+
+test('every heading carries a slug, taken from its rendered text', () => {
+  const blocks = md.parse('# Plain\n\n## With `code` and **bold**');
+  assert.equal(blocks[0].slug, 'plain');
+  assert.equal(blocks[1].slug, 'with-code-and-bold');
+});
+
+test('repeated headings get distinct slugs in document order', () => {
+  const blocks = md.parse('## Goals\n\n## Goals\n\n## Goals');
+  assert.deepEqual(blocks.map((b) => b.slug), ['goals', 'goals-1', 'goals-2']);
+});
+
+test('a heading inside a blockquote cannot collide with one outside it', () => {
+  const blocks = md.parse('## Goals\n\n> ## Goals');
+  assert.equal(blocks[0].slug, 'goals');
+  assert.equal(blocks[1].blocks[0].slug, 'goals-1');
+});
+
+test('slugs are stable across parses of the same document', () => {
+  const doc = '# One\n\n## Two\n\n## Two';
+  assert.deepEqual(
+    md.parse(doc).map((b) => b.slug),
+    md.parse(doc).map((b) => b.slug),
+  );
+});

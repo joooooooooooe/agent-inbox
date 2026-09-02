@@ -144,8 +144,10 @@ const REQUESTS = [
     blocking: false,
     response: { type: 'text' },
     technical_context: [
-      // A real path in this repo: clicking it in the app opens the document.
-      'Wording follows the tone argued for in docs/2026-08-16-project-tracking-design.md.',
+      // A real path in this repo, with a section: clicking it opens the
+      // document at that heading.
+      'Wording follows the tone argued for in '
+        + 'docs/2026-08-16-project-tracking-design.md#the-recommendation-up-front.',
     ],
   }],
 ];

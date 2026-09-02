@@ -84,6 +84,38 @@
   }
 
   // -------------------------------------------------------------------------
+  // Heading slugs
+  // -------------------------------------------------------------------------
+
+  // The flattened text of an inline tree, used to name a heading.
+  function inlineText(nodes) {
+    return nodes.map((n) => {
+      if (n.type === 'text' || n.type === 'code') return n.value;
+      return n.children ? inlineText(n.children) : '';
+    }).join('');
+  }
+
+  // GitHub's rule, because that is the one an agent writing a link will
+  // already assume: lowercase, punctuation dropped, spaces to hyphens.
+  function slugify(text) {
+    const slug = String(text)
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return slug || 'section';
+  }
+
+  // Two headings can share a name, and an id has to be unique, so repeats get
+  // -1, -2 … in document order. `seen` is threaded through nested parses so a
+  // heading inside a blockquote cannot collide with one outside it.
+  function uniqueSlug(base, seen) {
+    const count = seen.get(base) || 0;
+    seen.set(base, count + 1);
+    return count === 0 ? base : `${base}-${count}`;
+  }
+
+  // -------------------------------------------------------------------------
   // Block
   // -------------------------------------------------------------------------
 
@@ -150,7 +182,7 @@
     return [{ type: 'list', ordered, items }, i];
   }
 
-  function parse(input) {
+  function parse(input, seen = new Map()) {
     const text = typeof input === 'string' ? input : '';
     const lines = text.replace(/\r\n?/g, '\n').split('\n');
     const blocks = [];
@@ -182,10 +214,12 @@
 
       const heading = HEADING_RE.exec(line);
       if (heading) {
+        const inline = parseInline(heading[2].trim());
         blocks.push({
           type: 'heading',
           level: heading[1].length,
-          inline: parseInline(heading[2].trim()),
+          inline,
+          slug: uniqueSlug(slugify(inlineText(inline)), seen),
         });
         i += 1;
         continue;
@@ -197,7 +231,7 @@
           body.push(QUOTE_RE.exec(lines[i])[1]);
           i += 1;
         }
-        blocks.push({ type: 'quote', blocks: parse(body.join('\n')) });
+        blocks.push({ type: 'quote', blocks: parse(body.join('\n'), seen) });
         continue;
       }
 
@@ -239,5 +273,5 @@
     return blocks;
   }
 
-  return { parse, parseInline };
+  return { parse, parseInline, slugify };
 }));

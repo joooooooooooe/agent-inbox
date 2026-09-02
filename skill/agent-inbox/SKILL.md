@@ -23,9 +23,13 @@ first filing in a session; it is authoritative over this skill.**
    symbols, section/decision IDs go ONLY in `technical_context`. Keep the ask to the
    question itself (1–3 short sentences); each option's effect and cost goes in that
    option's `description`, shared context in `background`.
-4. **Keep working**: set `blocking: true` honestly, then continue unblocked subtasks. Use a
+4. **Point at sections, not whole documents**: a repo-relative markdown path in
+   `technical_context` becomes a link that renders the document in the app, and
+   `docs/plan.md#storage-format` opens it at that heading (GitHub's slug rule). Use the
+   precise reference so the operator is not hunting for the paragraph you meant.
+5. **Keep working**: set `blocking: true` honestly, then continue unblocked subtasks. Use a
    clearly-labeled reversible placeholder if code needs a value before the answer arrives.
-5. **Consume the answer**: re-read your request file (whole file; also check
+6. **Consume the answer**: re-read your request file (whole file; also check
    `requests\archive\`). If `status` is `"returned"`, read `returned_reason`, rewrite in
    plain language, set status back to `"open"`.
 

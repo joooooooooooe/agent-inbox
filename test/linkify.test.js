@@ -73,3 +73,21 @@ test('matches an uppercase extension', () => {
 test('tolerates a non-string input', () => {
   assert.deepEqual(splitMarkdownPaths(null), [{ type: 'text', value: '' }]);
 });
+
+test('a path may carry a #section pointing at a heading inside it', () => {
+  const parts = splitMarkdownPaths('see docs/design.md#the-recommendation for why');
+  const paths = parts.filter((p) => p.type === 'path').map((p) => p.value);
+  assert.deepEqual(paths, ['docs/design.md#the-recommendation']);
+});
+
+test('a bare path still matches, and trailing punctuation stays out of it', () => {
+  const one = splitMarkdownPaths('see docs/design.md.');
+  assert.equal(one.filter((p) => p.type === 'path')[0].value, 'docs/design.md');
+  const two = splitMarkdownPaths('see docs/design.md#goals.');
+  assert.equal(two.filter((p) => p.type === 'path')[0].value, 'docs/design.md#goals');
+});
+
+test('a section reference survives backslash paths too', () => {
+  const parts = splitMarkdownPaths('docs\\design.md#goals');
+  assert.equal(parts.filter((p) => p.type === 'path')[0].value, 'docs\\design.md#goals');
+});

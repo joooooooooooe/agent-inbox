@@ -77,13 +77,18 @@ actually kills this kind of tool.
 
 When a question mentions a markdown file in its project's repository, the app turns it into a
 link and renders the document in place. Useful when the answer depends on a design doc you
-half-remember, and it means the inbox never has to shell out to an editor to be useful.
+half-remember.
+
+An agent can point at a section rather than a whole document —
+`docs/plan.md#storage-format` opens it at that heading, using GitHub's slug rule so the
+anchor an agent would write for GitHub already works. Hovering any heading in a rendered
+document gives you a link back to that section, which is the reference to paste into the
+next request.
 
 ![A design document rendered inside the inbox](docs/images/document.png)
 
 Rendering is a small parser in [`public/markdown.js`](public/markdown.js) with no
-dependencies. Doing it in the app rather than shelling out to an editor is also what lets the
-server contain no process-launching code at all — see below.
+dependencies.
 
 ## Install it for real
 
@@ -154,11 +159,9 @@ It is a local web server that reads and writes files, so the boundaries are wort
 - **Documents are resolved inside the requesting project's own repository**, must be markdown,
   must already exist, and are size-capped. A path that escapes the repo is refused, including
   the case of a sibling directory whose name merely starts with the repo's name.
-- **The server launches no processes.** There is no code path from an HTTP request to an
-  executable — the app renders documents itself rather than handing them to another program,
-  so the usual "local server that can start things" risk does not exist here.
-- **Nothing is rendered as HTML.** Agent-authored text and document contents alike become DOM
-  text nodes; the markdown parser emits data, never markup, so a document cannot inject script.
+- **Text is inserted as text.** Agent-authored fields and document contents alike become DOM
+  text nodes, and the markdown parser emits data rather than markup, so a document cannot
+  introduce script.
 - Request bodies are capped at 1 MB, request ids are validated before any filesystem access,
   and every write is atomic (write to a temporary file, then rename).
 
