@@ -1,6 +1,6 @@
 # Project tracking beside the inbox, not inside it
 
-Joe asked for the inbox to "be more of project tracking, to include features, bug tracking,
+The operator asked for the inbox to "be more of project tracking, to include features, bug tracking,
 etc." (2026-08-16), prompted by having a set of long-range product ideas and nowhere good to
 put them. This design says yes to the outcome and no to the literal shape: tracked items get
 the inbox's store discipline, its app and its protocol, but not its list, not its schema, and
@@ -24,7 +24,7 @@ the app through the repo root already in `projects.json`.
 
 ## Goals
 
-1. Joe has one place he looks, and long-range ideas have a home that is not a wall of defects.
+1. The operator has one place they look, and long-range ideas have a home that is not a wall of defects.
 2. The question card's plain-language bar does not move, in either direction.
 3. Filing a bug mid-task stays as cheap as today — one file write, no server, no permissions
    beyond the repo the agent is already in.
@@ -42,7 +42,7 @@ the app through the repo root already in `projects.json`.
 
 ## 1. One tool or two?
 
-### The case Joe is making
+### The case the operator is making
 
 It is a good one. He has one attention surface and the inbox is already it. An answered question
 routinely *becomes* work — BL-095 is literally a card id and a ruling copied out by hand, and
@@ -51,7 +51,7 @@ repo-mirroring all exist and would be reused. A second local web app would be si
 
 ### The case against merging them into one list
 
-The inbox's value is that its list is short and every row is a thing Joe can settle in a
+The inbox's value is that its list is short and every row is a thing the operator can settle in a
 minute. Both properties are structural, not cultural:
 
 - **The list is short because questions settle and leave.** Items do not leave. MyProject has 111
@@ -61,7 +61,7 @@ minute. Both properties are structural, not cultural:
   and should not try: BL-088's value is six paragraphs of measurement, two of them disproved
   leads kept deliberately. Once half the rows are exempt from the clarity lint, the lint is
   advice — and nobody decides to lower the bar, it just stops being the shape of the list.
-- **A question is written for Joe; an item is written for the next agent.** Every field ruling
+- **A question is written for the operator; an item is written for the next agent.** Every field ruling
   the protocol makes follows from its audience, so a shared schema must abandon those rulings
   or misapply them.
 
@@ -75,10 +75,10 @@ minute. Both properties are structural, not cultural:
 | Bridge | free (same record) | one field each way | one field each way |
 | Repo-native items | no | no | yes |
 
-**A is rejected** — the literal reading of Joe's ask, and the one that dilutes. A conditional
+**A is rejected** — the literal reading of the operator's ask, and the one that dilutes. A conditional
 lint is not a contract, and an 800-word prose body inside a JSON string field is unreadable in
 a git diff and painful for an agent to write correctly. **B is the safe answer** and would
-work; it fails only on question 4, because the items would sit under Joe's home directory.
+work; it fails only on question 4, because the items would sit under the operator's home directory.
 **C is the recommendation:** one extra storage root in the store layer, buying everything
 section 4 argues for.
 
@@ -103,7 +103,7 @@ structured header on it**, and that inversion is the whole argument.
 |---|---|---|
 | Format | JSON | markdown with YAML front matter |
 | Lifetime | hours to days | weeks to forever |
-| Written for | Joe | the next agent |
+| Written for | the operator | the next agent |
 | Written by | agent, once | many agents, appended to over months |
 | Ends when | answered — that is the point | fixed or absorbed, or never |
 | Prose bar | 60-second test, linted | none; jargon is the content |
@@ -141,7 +141,7 @@ breaks, provided the two layers are joined — one convention, no schema:
   zero schema: a directory listing and an H1.
 
 The tell is status. An **area document** is a place: no status, no end, describing how part of
-the game should be. An **item** has a status and finishes. Had `vision` shipped, Joe's wizard
+the game should be. An **item** has a status and finishes. Had `vision` shipped, the operator's wizard
 prose would have two homes and the tracker's copy would be the stale one.
 
 ### Front matter — the complete field list
@@ -153,7 +153,7 @@ status: fixed
 systems: [possession, online, creatures]
 created: 2026-08-13
 updated: 2026-08-15
-source: Joe, round-7 play card
+source: the operator, round-7 play card
 answers: [20260814-myproject-getting-out-in-mid-air-2f7c]
 ```
 
@@ -166,7 +166,7 @@ Every field, floor-tested — *what breaks if it is absent?*
 | `status` | You cannot tell a live item from a dead one without reading it. |
 | `systems` | **The read path dies.** The highest-value field: a declared, closed vocabulary shared with the area documents (section 2). |
 | `created` / `updated` | You cannot tell a stale hypothesis from a current one, and the backlog is full of both. |
-| `source` | You cannot tell Joe's direction from an agent's opinion — and the operating model grades those differently. |
+| `source` | You cannot tell the operator's direction from an agent's opinion — and the operating model grades those differently. |
 | `answers` | The bridge to the inbox. Rulings drift away from the items they rule. |
 
 ### Fields deliberately not in the list
@@ -224,7 +224,7 @@ Five, and they are the five live usage converged on with the ceremony removed.
 - `wont-do` must stay distinct from `fixed`. BL-096 exists *solely* so a future agent stops and
   does not "fix" a deliberate mismatch; it must never read as a to-do.
 
-**No "awaiting Joe's eyes" state**, despite that being a real condition here (BL-105: *"Joe's
+**No "awaiting the operator's eyes" state**, despite that being a real condition here (BL-105: *"the operator's
 eyes still owed"*). It is orthogonal to all five, and it already has a tool: the item files a
 question in the inbox and names it in `answers` — the bridge earning its keep, not a sixth state.
 
@@ -234,7 +234,7 @@ question in the inbox and names it in `answers` — the bridge earning its keep,
 
 ### What is load-bearing about the repo
 
-`BACKLOG.md` sits in the MyProject git repository, and moving it to `C:\Users\you\.agent-inbox`
+`BACKLOG.md` sits in the MyProject git repository, and moving it to `C:\Users\operator\.agent-inbox`
 would cost all of the following:
 
 1. **Atomicity with the fix.** "Fix the bug and close the item" is one commit today; split the
@@ -256,31 +256,31 @@ they forget.
 pattern, extended. Simplest to build; the app owns every write; one storage root. **Rejected:**
 the mirror is generated, so it is read-only to agents — the write path leaves the repo and every
 property above is lost except backup. It also inverts the cost that matters, since agents write
-items far more often than Joe reads them, so the cheap path should be the agent's.
+items far more often than the operator reads them, so the cheap path should be the agent's.
 
 **Option 2 — store-of-record in the repo for everything, including questions.** Inverts today's
-direction entirely. **Rejected:** questions are cross-project by nature, several of Joe's
+direction entirely. **Rejected:** questions are cross-project by nature, several of the operator's
 projects are not git repos, and a question about which project to do first belongs to neither.
 (An earlier draft also rejected it for making the app a repo writer. That reason was wrong and
 is withdrawn — see the next subsection.)
 
 **Option 3 — split by entity type. Recommended.**
 
-- Questions: `C:\Users\you\.agent-inbox\requests\<id>.json`. Unchanged.
+- Questions: `C:\Users\operator\.agent-inbox\requests\<id>.json`. Unchanged.
 - Items: `<repo>\<tracker-path>\<id>.md`, one file per item.
 - `projects.json` gains one optional field beside `mirror`:
 
 ```json
 "myproject": {
   "name": "MyProject",
-  "repo": "C:\\Users\\you\\MyProject",
+  "repo": "C:\\Users\\operator\\MyProject",
   "mirror": "dev\\agent-answers.md",
   "tracker": "Assets\\_Project\\Docs\\tracker"
 }
 ```
 
 - Projects with no `repo` or no `tracker` fall back to `.agent-inbox\items\<slug>\`. Without the
-  fallback, Joe's non-code projects cannot track anything; it is one root-resolution function,
+  fallback, the operator's non-code projects cannot track anything; it is one root-resolution function,
   not a second code path.
 
 The founding principle survives: the file protocol is still the contract, and still works with
@@ -288,7 +288,7 @@ no server running.
 
 ### The app writing into the repo
 
-Putting items in the repo and then letting Joe flip their status in the app makes the app a
+Putting items in the repo and then letting the operator flip their status in the app makes the app a
 writer into a git working tree — in MyProject, one with roughly 40,000 untracked files, a
 pre-push hook, and a standing ban on `git add -A`. This is the sharpest problem in the design
 and it is not resolved by wishing the app were read-only.
@@ -302,14 +302,14 @@ is that **agents never depend on the app**, and no option below touches that.
 | Option | Cost |
 |---|---|
 | **(a) Write the file, leave it dirty** | A stale uncommitted edit can be clobbered by an agent that writes the same file, or swept into an unrelated commit. Both are already true of the mirror. |
-| **(b) Never write; queue the change for an agent** | Keeps the app literally read-only, and costs Joe the one thing a human wants from a tracker: ticking something off. A close would need an agent session. |
+| **(b) Never write; queue the change for an agent** | Keeps the app literally read-only, and costs the operator the one thing a human wants from a tracker: ticking something off. A close would need an agent session. |
 | **(c) Status in a store-side overlay, body in the repo** | Splits the single most important field across two stores, and destroys atomicity-with-the-fix — the best argument for repo storage in the first place. |
 | **(d) The app commits its own change** | Honest and leaves no dirt, but the viewer now runs git: it must use the pathspec form so it cannot sweep an agent's staged index, refuse to act mid-merge or mid-rebase, and it leaves an unpushed commit the next agent's push gate did not write. |
 
 **Recommendation: (a), with two guards** — it is the status quo extended by one file, which is
 the strongest evidence available that it survives contact with this repo. The guards: the app
 writes **exactly one line, the front-matter `status:`, and never body prose**, so a concurrent
-agent edit costs at most a flip Joe redoes in a second; and the Tracking view **badges any item
+agent edit costs at most a flip the operator redoes in a second; and the Tracking view **badges any item
 whose file is uncommitted**, so it gets committed rather than found a week later.
 
 (d) is the better long-term answer and should be reconsidered if dirty tracker files start
@@ -326,7 +326,7 @@ The same argument the inbox already made for `requests\<id>.json`:
 - **A grep hit is a whole file**, not an offset into a wall — see the read path in section 6.
 
 The cost: you can no longer read the whole backlog in one call. Nobody usefully did that at 834
-lines anyway, and Joe has the app.
+lines anyway, and the operator has the app.
 
 ---
 
@@ -387,7 +387,7 @@ collision then costs a file rename and nothing else.
 
 The alternative worth naming is a random speakable suffix (`BL-7K2Q`), collision-proof enough
 to cite immediately but losing the "higher number is newer" ordering that makes a bare list
-readable. If Joe would rather never think about this again, that is the trade; as written, the
+readable. If the operator would rather never think about this again, that is the trade; as written, the
 citation rule is cheaper.
 
 ### Read path — the real win, which is smaller than it looks
@@ -415,7 +415,7 @@ the same "search before you file" rule `PROTOCOL.md` section 3 already imposes o
 
 **No generated index file.** It is the obvious thing to add and it is exactly what would become
 the new 834-line wall — plus it would be stale for any agent working while the server is down.
-Grep is always accurate and costs the same. Joe's list is generated live in the app, where it
+Grep is always accurate and costs the same. The operator's list is generated live in the app, where it
 is free.
 
 ---
@@ -430,9 +430,9 @@ Short, because the protocol is the product.
   renderer, hand the file to Sublime. An item *is* a markdown file at a real path, so this is
   straight reuse rather than a new capability.
 - **The project's area documents listed beside the tracker**, read-only, straight from the
-  `areas\` folder — filename and H1, opening in Sublime on click. This is what gives Joe's
+  `areas\` folder — filename and H1, opening in Sublime on click. This is what gives the operator's
   long-range ideas a visible home without a `vision` kind (section 2).
-- **Exactly two write actions:** change status, and "ask Joe about this", which opens the
+- **Exactly two write actions:** change status, and "ask the operator about this", which opens the
   existing new-question form pre-linked to the item.
 - **Badges** on a question that came from an item and vice versa, and on any uncommitted item.
 
@@ -468,7 +468,7 @@ status: fixed
 systems: [possession, online, creatures]
 created: 2026-08-13
 updated: 2026-08-15
-source: Joe, round-7 play card
+source: the operator, round-7 play card
 answers: [20260815-myproject-clean-slate-cd68]
 ---
 
@@ -479,7 +479,7 @@ answers: [20260815-myproject-clean-slate-cd68]
 
 - **Value (as first reported, before the re-test corrected it):** …
 - **NOT cured by `9914e12`, and the review says why …**
-- **Joe re-tested it on the `c165cd1` build and the title is now wrong** …
+- **the operator re-tested it on the `c165cd1` build and the title is now wrong** …
 - **The lead above was probed and it is WRONG, measured 2026-08-14.** …
 - **Diagnosed on two built windows, 2026-08-14** (`a91b3c5`). …
 ```
@@ -494,7 +494,7 @@ and 111 files where there was one.
 - An agent on vehicles never matches it. Grepping the *word* today does: this body mentions
   vehicles, the car, and BL-084 without being about any of them.
 - An agent on possession gets a bounded file, and knows from the header alone that it is closed,
-  recent and Joe-sourced before reading a line — where today the same hit is an offset into
+  recent and the operator-sourced before reading a line — where today the same hit is an offset into
   3,000 words with no marked end.
 - The disproved leads survive intact, costing nothing to anyone not working on possession.
 - `git log` on the file names the four agents and the order they were wrong in, and the fixing
@@ -519,7 +519,7 @@ that test, collected:
 | `repro`, `evidence`, `links`, `assignee`, `blocked_by`, `closed_by` | Prose and existing tools already carry all of it |
 | `inbox` / `captured` / `triaged` / `candidate` as distinct states | Four names for one condition; nothing branched on the difference |
 | `research`, `ready-to-propose`, `rejected` | Zero uses in 111 entries |
-| An "awaiting Joe's eyes" state | It is a question, and the inbox already handles questions |
+| An "awaiting the operator's eyes" state | It is a question, and the inbox already handles questions |
 | A `vision` kind, and an `area` pointer field | `areas\*.md` is already the home; `systems` reaches it, so both would only fragment the prose |
 | A generated index file | Becomes the new wall; grep is accurate and equally cheap |
 | A periodic review or staleness sweep | The existing one has never run once in the backlog's life |
@@ -530,7 +530,7 @@ move on close, one folder per project, and one sentence added to each repo's rou
 
 ---
 
-## Open questions for Joe
+## Open questions for the operator
 
 1. When something is fixed, do you want to be asked to look at it in the game before it counts
    as finished — every time, or only when the person who fixed it thinks it matters?

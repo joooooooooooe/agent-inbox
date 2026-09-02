@@ -4,9 +4,9 @@ Last updated: 2026-08-07. Canonical source: `protocol\PROTOCOL.md` in the agent-
 (rendered and synced into `{{DATA_DIR}}\PROTOCOL.md` on every server boot; the repo copy wins).
 
 This is the contract for coding agents (Claude Code, Codex, etc.) that need a decision from
-Joe. **The file protocol is the contract; the app is only a viewer/editor.** You participate
-with nothing but filesystem reads and writes — no server needs to be running for you to file
-a request or read an answer.
+the operator — the person whose inbox this is. **The file protocol is the contract; the app
+is only a viewer/editor.** You participate with nothing but filesystem reads and writes — no
+server needs to be running for you to file a request or read an answer.
 
 ## Locations
 
@@ -60,7 +60,7 @@ If the answer is no, the request does not conform.
   symbols, decision references, workstream slugs, and agent-to-agent implementation notes
   live there. The app shows it collapsed; the human never needs it to answer.
 - The app runs an advisory clarity lint over the human-facing fields (paths, `§`, ID
-  patterns, backticked code, over-long asks) and flags offenders to Joe.
+  patterns, backticked code, over-long asks) and flags offenders to the operator.
 
 **Worked example — BAD, then GOOD.**
 
@@ -186,8 +186,8 @@ metadata (prefix it, e.g. `x_my_agent_state`) and it will survive.
 
 | Status | Set by | Meaning |
 |---|---|---|
-| `open` | agent (at filing, and after rewriting a returned request) | Waiting for Joe. |
-| `answered` | app | Joe answered; read `answer`. |
+| `open` | agent (at filing, and after rewriting a returned request) | Waiting for the operator. |
+| `answered` | app | The operator answered; read `answer`. |
 | `returned` | app | Bounced for a plain-language rewrite; read `returned_reason`, rewrite, set back to `open`. |
 | `withdrawn` | agent or app | Question is void; do not act. |
 | `superseded` | agent or app | Replaced; follow `superseded_by`, never act on this one. |
@@ -204,7 +204,7 @@ Settled requests (`answered`/`withdrawn`/`superseded`) may be moved by the app i
 | `choice` | radio buttons — pick exactly one | yes |
 | `multi_select` | checkboxes — pick any number | yes |
 | `text` | free-text box | no |
-| `checklist` | a to-do list Joe ticks off | yes |
+| `checklist` | a to-do list the operator ticks off | yes |
 | `approval` | Approve / Reject buttons | no |
 
 For option-based types (`choice`, `multi_select`, `checklist`), `response.options` is a
@@ -212,14 +212,14 @@ non-empty array of `{ "key": "...", "label": "...", "description": "..." }`.
 `key` is required and must be unique within the request; `label` and `description` are
 optional but a `label` is strongly recommended — in plain language.
 
-### Answer shapes (what the app writes when Joe answers)
+### Answer shapes (what the app writes when the operator answers)
 
 When answered, the app sets `status: "answered"` and fills `answer`:
 
 ```json
 "answer": {
   "value": <shape depends on response.type — see below>,
-  "notes": "optional free text from Joe (omitted when empty)",
+  "notes": "optional free text from the operator (omitted when empty)",
   "answered_at": "2026-08-07T19:12:03.123Z"
 }
 ```
@@ -255,7 +255,7 @@ Notes:
    re-ask an answered question, and do not duplicate an open one.**
 3. **One decision per request.** If you need three decisions, file three requests. Never
    bundle.
-4. **Write background so Joe can decide without opening the repo** — consequences and costs
+4. **Write background so the operator can decide without opening the repo** — consequences and costs
    in plain terms, and your recommendation if you have one.
 5. **Set `blocking` honestly.** `blocking: true` means you are stopped until answered. If
    you can proceed on an assumption, file with `blocking: false` and state the assumption in
@@ -266,16 +266,16 @@ Notes:
 7. **Write atomically:** write the JSON to a temp file **in the same directory** (e.g.
    `<id>.json.tmp-<random>`), then rename it to `<id>.json`. This prevents the app or other
    agents from reading a half-written file. Files that are not valid JSON are surfaced to
-   Joe as problems, not answered.
+   The operator as problems, not answered.
 8. If your question replaces an older open request of yours, file the new one, then either
    edit the old file's `status` to `"superseded"` with `superseded_by` set to the new id, or
-   mention the old id so Joe can supersede it in the app.
+   mention the old id so the operator can supersede it in the app.
 
 ## 4. Consumption rules (how to read answers)
 
 1. **At task start**, read your project's answers digest: the in-repo mirror if the project
    has one, else `{{DATA_DIR}}\answers\<slug>.md`. Treat it as standing
-   direction from Joe. The digest holds the newest 50 entries; older history lives in
+   direction from the operator. The digest holds the newest 50 entries; older history lives in
    `answers\<slug>-archive.md` in the data store (the digest's footer points there).
 2. The digest is generated — **never edit it**; edits are overwritten on the next change.
 3. The **JSON request file is the machine-readable record**. To poll a request you filed,
@@ -285,24 +285,24 @@ Notes:
    - `"open"` → not answered yet; keep waiting (or proceed if you filed non-blocking).
    - `"returned"` → **your request was bounced for rewrite.** Read `returned_reason`,
      rewrite the human-facing fields in place per section 1 (or file a fresh request), then
-     set `status` back to `"open"`. Joe will not see it again until you do.
+     set `status` back to `"open"`. The operator will not see it again until you do.
    - `"withdrawn"` → the question is void; do not act, do not re-file unless things changed.
    - `"superseded"` → **do not act on this answer.** Follow `superseded_by` to the successor
      request and use that one.
 4. **If you filed a request, you MUST poll it** (at minimum: re-check when you next start a
    task in that project) precisely so `returned` bounces reach you.
-5. Answers here are Joe's direction, but **durable decisions must still be promoted into
+5. Answers here are the operator's direction, but **durable decisions must still be promoted into
    your repo's own docs** per that repo's rules (decision logs, ADRs, etc.). The inbox is a
    channel, not an archive of record.
 
 ## 5. Copy-paste snippet for a project's `AGENTS.md` / `CLAUDE.md`
 
 ```markdown
-## Asking Joe (Agent Inbox)
-When blocked on a decision only Joe can make, file a request as a JSON file in
+## Asking the operator (Agent Inbox)
+When blocked on a decision only the operator can make, file a request as a JSON file in
 `{{DATA_DIR}}\requests\` following `{{DATA_DIR}}\PROTOCOL.md`.
 Before filing, check the answered digest (in-repo mirror if present, else
 `{{DATA_DIR}}\answers\<project>.md`) — do not re-ask answered questions.
-Answers here are Joe's direction, but durable decisions must still be promoted into this
+Answers here are the operator's direction, but durable decisions must still be promoted into this
 repo's own docs per its rules.
 ```

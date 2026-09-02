@@ -1,11 +1,11 @@
 ---
 name: agent-inbox
-description: Use when blocked on a decision, preference, approval, or piece of information only Joe can provide — product taste calls, scope choices, tradeoff rulings, naming, "which option do you want" — especially when Joe is away or the answer can wait. Also use at task start to check whether a question was already answered, before asking anything in chat.
+description: Use when blocked on a decision, preference, approval, or piece of information only the operator can provide — product taste calls, scope choices, tradeoff rulings, naming, "which option do you want" — especially when the operator is away or the answer can wait. Also use at task start to check whether a question was already answered, before asking anything in chat.
 ---
 
 # Agent Inbox
 
-Joe runs a cross-project inbox for agent questions. It is a **file protocol** — you
+The operator runs a cross-project inbox for agent questions. It is a **file protocol** — you
 participate by reading and writing files; no server or tool is required.
 
 **The contract lives at `{{DATA_DIR}}\PROTOCOL.md`. Read it before your
@@ -31,7 +31,7 @@ first filing in a session; it is authoritative over this skill.**
 
 ## Don't
 
-- Don't decide product-taste calls yourself because Joe is away — file and proceed.
+- Don't decide product-taste calls yourself because the operator is away — file and proceed.
 - Don't leave decisions only in repo docs, code comments, or chat — they're invisible to
-  Joe's queue. (In-repo notes may *supplement* a filed request.)
+  The operator's queue. (In-repo notes may *supplement* a filed request.)
 - Don't ask in chat what the inbox already answered.

@@ -137,7 +137,7 @@ matters. A path is rejected unless **all** hold:
 
 - It resolves, via `path.resolve`, to a location inside the project's repo root. The containment
   check compares against `repoRoot + path.sep` to defeat sibling-prefix escapes
-  (`C:\Users\you\MyProject-evil`).
+  (`C:\Users\operator\MyProject-evil`).
 - It ends in `.md`, case-insensitive.
 - It exists and `statSync` reports a regular file.
 

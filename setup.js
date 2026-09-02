@@ -62,7 +62,7 @@ function main() {
   console.log('Next steps');
   console.log(`  1. Register this machine's projects: edit ${path.join(dataDir, 'projects.json')}`);
   console.log('     (slug -> { "name", "repo", optional "mirror" relative to repo — see README).');
-  console.log(`  2. For Codex-driven repos, paste the "Asking Joe (Agent Inbox)" snippet from`);
+  console.log(`  2. For Codex-driven repos, paste the "Asking the operator (Agent Inbox)" snippet from`);
   console.log(`     ${path.join(dataDir, 'PROTOCOL.md')} (section 5) into each repo's AGENTS.md.`);
   console.log('     (Claude picks the skill up machine-wide automatically.)');
   console.log('  3. Run start-inbox.cmd (or: node server.js) and open http://127.0.0.1:7717');

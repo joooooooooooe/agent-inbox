@@ -517,7 +517,7 @@ In another, with a real open card id and path:
 curl -s -X POST http://127.0.0.1:7717/api/open -H "Content-Type: application/json" -d "{\"id\":\"20260811-example-notes-review-the-report-43e6\",\"path\":\"out/review_report.md\"}"
 ```
 
-Expected: `{"ok":true,"path":"C:\\Users\\you\\Example Notes\\out\\review_report.md"}`, Sublime opens the file, Edge renders it.
+Expected: `{"ok":true,"path":"C:\\Users\\operator\\Example Notes\\out\\review_report.md"}`, Sublime opens the file, Edge renders it.
 
 Then confirm a traversal attempt is refused:
 

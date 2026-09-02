@@ -2,14 +2,14 @@
 
 Produced by the Plan agent from `docs/2026-08-07-agent-inbox-design.md`; handed verbatim to the builder.
 
-Spec: `C:\Users\you\AgentInbox\docs\2026-08-07-agent-inbox-design.md`
-Repo: `C:\Users\you\AgentInbox` — Data store: `C:\Users\you\.agent-inbox` (created/seeded on boot, never assumed to exist).
+Spec: `C:\Users\operator\AgentInbox\docs\2026-08-07-agent-inbox-design.md`
+Repo: `C:\Users\operator\AgentInbox` — Data store: `C:\Users\operator\.agent-inbox` (created/seeded on boot, never assumed to exist).
 Hard constraints: zero npm dependencies (`node:http`, `node:fs`, `node:path`, `node:crypto`, `node:test` only), no build step, single-file UI, CommonJS `.js` files (no `package.json` required; `node --test` and `node server.js` work bare — optionally add a dep-free `package.json` with `start`/`test` scripts, but it is not in the required tree).
 
 ## 1. File tree
 
 ```
-C:\Users\you\AgentInbox\
+C:\Users\operator\AgentInbox\
   server.js              # HTTP server: static + JSON API; thin — all logic in lib/store.js
   lib\
     store.js             # pure store functions, dataDir passed as parameter; unit-testable
