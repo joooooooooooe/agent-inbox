@@ -1,0 +1,15 @@
+# This project has no dependencies and no build step — there should be very
+# little to ignore. Anything here is local noise, not project state.
+
+node_modules/
+*.tmp
+*.log
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local scratch: demo stores created by `node demo.js --keep`
+.demo-store/

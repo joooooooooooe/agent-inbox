@@ -3,9 +3,19 @@
   "version": "1.0.0",
   "private": true,
   "description": "Local-only inbox for questions from coding agents. Zero dependencies, no build step.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joooooooooooe/agent-inbox.git"
+  },
   "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server.js",
+    "demo": "node demo.js",
+    "setup": "node setup.js",
     "test": "node --test test/"
   }
 }
