@@ -6,3 +6,5 @@ require('./store.test.js');
 require('./setup.test.js');
 require('./open-file.test.js');
 require('./linkify.test.js');
+require('./server.test.js');
+require('./markdown.test.js');

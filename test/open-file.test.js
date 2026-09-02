@@ -159,7 +159,41 @@ test('rejects an empty path', () => {
   expectStoreError(() => openFile.resolveMarkdownPath(dataDir, 'req-1', '  '), 'VALIDATION');
 });
 
-// --- editor launch -------------------------------------------------------
+// --- reading ------------------------------------------------------------
+
+test('reads a resolved document and returns its text', () => {
+  const { dataDir, repo } = fixture();
+  fs.writeFileSync(path.join(repo, 'docs', 'note.md'), '# Title\n\nBody text.\n');
+  const result = openFile.readMarkdown(dataDir, 'req-1', 'docs/note.md');
+  assert.equal(result.path, path.join(repo, 'docs', 'note.md'));
+  assert.match(result.markdown, /# Title/);
+});
+
+test('reading applies the same boundary as resolving', () => {
+  const { dataDir } = fixture();
+  assert.throws(
+    () => openFile.readMarkdown(dataDir, 'req-1', '../../secrets.md'),
+    (err) => err instanceof store.StoreError && err.httpStatus === 400,
+  );
+});
+
+test('a byte-order mark is stripped rather than rendered', () => {
+  const { dataDir, repo } = fixture();
+  fs.writeFileSync(path.join(repo, 'docs', 'note.md'), '﻿# Title\n');
+  const result = openFile.readMarkdown(dataDir, 'req-1', 'docs/note.md');
+  assert.equal(result.markdown[0], '#');
+});
+
+test('a file over the size cap is refused with an explanation', () => {
+  const { dataDir, repo } = fixture();
+  fs.writeFileSync(path.join(repo, 'docs', 'huge.md'), 'x'.repeat(2 * 1024 * 1024 + 1));
+  assert.throws(
+    () => openFile.readMarkdown(dataDir, 'req-1', 'docs/huge.md'),
+    (err) => err instanceof store.StoreError && /limit for viewing/.test(err.message),
+  );
+});
+
+// --- optional external editor -------------------------------------------
 
 function fakeSpawner() {
   const calls = [];
@@ -170,63 +204,62 @@ function fakeSpawner() {
   return { calls, spawn };
 }
 
-test('launch opens the file then sends the preview command', async () => {
-  const { calls, spawn } = fakeSpawner();
-  await openFile.launchEditor('C:\\repo\\docs\\note.md', {
-    spawn,
-    sublPath: 'C:\\subl.exe',
-    isRunning: () => true,
-    delay: () => Promise.resolve(),
+function withEnv(value, fn) {
+  const previous = process.env.AGENT_INBOX_OPEN_CMD;
+  if (value === null) delete process.env.AGENT_INBOX_OPEN_CMD;
+  else process.env.AGENT_INBOX_OPEN_CMD = value;
+  try {
+    return fn();
+  } finally {
+    if (previous === undefined) delete process.env.AGENT_INBOX_OPEN_CMD;
+    else process.env.AGENT_INBOX_OPEN_CMD = previous;
+  }
+}
+
+test('no editor is configured by default, and nothing is spawned', () => {
+  withEnv(null, () => {
+    assert.equal(openFile.configuredEditor(), null);
+    const { calls, spawn } = fakeSpawner();
+    assert.throws(
+      () => openFile.launchEditor('C:\repo\docs\note.md', { spawn }),
+      (err) => err instanceof store.StoreError && /AGENT_INBOX_OPEN_CMD/.test(err.message),
+    );
+    assert.equal(calls.length, 0, 'nothing may be spawned without an explicit command');
   });
-  assert.equal(calls.length, 2);
-  assert.deepEqual(calls[0], { cmd: 'C:\\subl.exe', args: ['C:\\repo\\docs\\note.md'] });
-  assert.equal(calls[1].args[0], '--command');
-  assert.match(calls[1].args[1], /^markdown_preview /);
-  assert.match(calls[1].args[1], /"target": ?"browser"/);
 });
 
-test('launch passes arguments as argv, never as a shell string', async () => {
-  const { calls, spawn } = fakeSpawner();
-  const nasty = 'C:\\repo\\docs\\a b & calc.md';
-  await openFile.launchEditor(nasty, {
-    spawn, sublPath: 'C:\\subl.exe', isRunning: () => true, delay: () => Promise.resolve(),
-  });
-  // The path survives intact as a single argv entry rather than being split
-  // or interpreted, which is what makes shell metacharacters harmless.
-  assert.deepEqual(calls[0].args, [nasty]);
+test('a blank or whitespace-only command counts as unconfigured', () => {
+  withEnv('   ', () => assert.equal(openFile.configuredEditor(), null));
+  withEnv('', () => assert.equal(openFile.configuredEditor(), null));
 });
 
-test('launch waits for a cold editor to appear before sending the command', async () => {
-  const { calls, spawn } = fakeSpawner();
-  let probes = 0;
-  await openFile.launchEditor('C:\\repo\\docs\\note.md', {
-    spawn,
-    sublPath: 'C:\\subl.exe',
-    isRunning: () => { probes += 1; return probes > 3; },
-    delay: () => Promise.resolve(),
+test('a configured editor is launched once with the file as its only argument', () => {
+  withEnv('my-editor', () => {
+    const { calls, spawn } = fakeSpawner();
+    const result = openFile.launchEditor('C:\repo\docs\note.md', { spawn });
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0], { cmd: 'my-editor', args: ['C:\repo\docs\note.md'] });
+    assert.equal(result.cmd, 'my-editor');
   });
-  assert.ok(probes > 3, 'should have polled until the editor appeared');
-  assert.equal(calls.length, 2, 'still exactly two spawns');
 });
 
-test('launch gives up waiting after the probe budget and still sends the command', async () => {
-  const { calls, spawn } = fakeSpawner();
-  await openFile.launchEditor('C:\\repo\\docs\\note.md', {
-    spawn,
-    sublPath: 'C:\\subl.exe',
-    isRunning: () => false,
-    delay: () => Promise.resolve(),
-    maxProbes: 5,
+test('the path is passed as argv, never as a shell string', () => {
+  withEnv('my-editor', () => {
+    const { calls, spawn } = fakeSpawner();
+    // Shell metacharacters are inert because there is no shell: the path
+    // stays one argv entry instead of being split or interpreted.
+    const nasty = 'C:\repo\docs\a b & calc.md';
+    openFile.launchEditor(nasty, { spawn });
+    assert.deepEqual(calls[0].args, [nasty]);
   });
-  assert.equal(calls.length, 2, 'sends the preview command even if detection never succeeded');
 });
 
-test('launch fails clearly when the editor binary is missing', async () => {
-  const spawn = () => { const e = new Error('spawn ENOENT'); e.code = 'ENOENT'; throw e; };
-  await assert.rejects(
-    () => openFile.launchEditor('C:\\repo\\docs\\note.md', {
-      spawn, sublPath: 'C:\\nope\\subl.exe', isRunning: () => true, delay: () => Promise.resolve(),
-    }),
-    (err) => err instanceof store.StoreError && /C:\\nope\\subl\.exe/.test(err.message),
-  );
+test('a missing editor binary fails with a message naming the command', () => {
+  withEnv('nope-not-a-real-binary', () => {
+    const spawn = () => { const e = new Error('spawn ENOENT'); e.code = 'ENOENT'; throw e; };
+    assert.throws(
+      () => openFile.launchEditor('C:\repo\docs\note.md', { spawn }),
+      (err) => err instanceof store.StoreError && /nope-not-a-real-binary/.test(err.message),
+    );
+  });
 });
