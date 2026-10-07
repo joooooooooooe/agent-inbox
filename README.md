@@ -6,6 +6,20 @@ We work on multiple projects, at varying stages of development, and often our ag
 need to ask us to review, approve, test, or just be aware of something. Agent Inbox
 captures it all in one place, with clear next steps.
 
+![The inbox: a list of questions from agents across projects, with one open for answering](docs/images/inbox.png)
+
+## Overview
+
+When you have several coding agents working across several repositories, they often hit
+decisions only you can make. Today each one asks in its own session, and the question is
+only visible while you're looking at it. The problem multiplies when you're using
+different model providers with their own apps, harnesses, and workflows. 
+An agent that stops on a question you never saw is an agent doing nothing for an hour.
+
+Agent Inbox gives them one place to ask and you one place to answer. Agents file questions as
+JSON files; you answer them in a local web app; the answers are written back where the agents
+will look for them. Nothing leaves your machine.
+
 Works with any coding agent that runs on your machine and can run shell commands. 
 Built-in setup for Claude Code and Codex. Others need a short snippet in AGENTS.md 
 or their own instructions file.
@@ -43,19 +57,6 @@ previews for owners; bounded workers do not investigate other projects. No globa
 "consumed" flag hides a message from a later agent. `--help` explains action commands
 when needed. Existing answer digests remain searchable history, not mandatory startup
 reading. The helper and file protocol work with the server closed.
-
-When you have several coding agents working across several repositories, they keep hitting
-decisions only you can make: what should this be called, which of these two behaviours do we
-want, is this worth the cost. Today each one asks in its own terminal, and the question is
-only visible while you happen to be looking at that terminal. Ask three agents to work and
-you have three places to watch — and an agent that stops on a question you never saw is an
-agent doing nothing for an hour.
-
-Agent Inbox gives them one place to ask and you one place to answer. Agents file questions as
-JSON files; you answer them in a local web app; the answers are written back where the agents
-will look for them. Nothing leaves your machine.
-
-![The inbox: a list of questions from agents across projects, with one open for answering](docs/images/inbox.png)
 
 ## Try it
 
