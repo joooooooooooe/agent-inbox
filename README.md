@@ -1,12 +1,14 @@
 # Agent Inbox
 
+[![Tests](https://github.com/joooooooooooe/agent-inbox/actions/workflows/test.yml/badge.svg)](https://github.com/joooooooooooe/agent-inbox/actions/workflows/test.yml)
+
 **One place for agents to ask you—and for you to send questions and ideas back.**
 
 We work on multiple projects, at varying stages of development, and often our agents
 need to ask us to review, approve, test, or just be aware of something. Agent Inbox
 captures it all in one place, with clear next steps.
 
-![The inbox: a list of questions from agents across projects, with one open for answering](docs/images/inbox.png)
+![The inbox: questions from agents and messages to agents across projects, with an agent's reply open](docs/images/inbox.png)
 
 ## Overview
 
@@ -68,13 +70,16 @@ That seeds a throwaway inbox with sample questions, starts the server, and opens
 data is untouched, and the temporary store is deleted when you stop it with Ctrl+C. No install
 step, no dependencies — the whole project is Node's standard library and one HTML file.
 
-Requires Node 20 or newer. Three things are worth trying once it opens:
+Requires Node 20 or newer. A few things worth trying once it opens:
 
-- **Answer the top question** and watch it move to the Answered tab.
-- **Open "S1 blocked on D-103 exception scope."** It shows the app's advisory `CLARITY`
-  badge. **Return for rewrite** sends a request back to the agent with your reason.
-- **Look at `answers/orchard.md`** in the store it names on startup. That generated file is
-  what the agent reads to learn what you decided.
+- **Send a message to agents**, then find it under **For agents**.
+- **Open Updates** to read the sample agent response, and mark it read.
+- **Answer the top question** and watch it leave **Needs you** and land in **Answered**.
+- **Open "S1 blocked on D-103 exception scope."** It is written in agent jargon, so it
+  carries the app's advisory `CLARITY` badge. **Return for rewrite** bounces it back to the
+  agent with your reason.
+- **After answering anything, look at `answers/orchard.md`** in the store the demo names on
+  startup. That generated file is what the agent reads to learn what you decided.
 
 ## The idea
 
@@ -182,9 +187,9 @@ the initial project in Send to agents. Display names come from each project's `n
 
 ### Point your agents at it
 
-Claude Code picks up the skill automatically after `setup.js`. For anything else, paste the
-snippet in section 5 of `~/.agent-inbox/PROTOCOL.md` into the repo's `AGENTS.md` or
-`CLAUDE.md`.
+Your agents pick up the skill automatically after `setup.js`: Claude Code and Codex both
+discover it. For any other agent, paste the snippet in section 5 of
+`~/.agent-inbox/PROTOCOL.md` into the repo's `AGENTS.md` or its own instructions file.
 
 ## Security
 
@@ -209,10 +214,20 @@ It is a local web server that reads and writes files, so the boundaries are wort
 npm test
 ```
 
-No dependencies, no runner to install — `node --test` over `test/`. The suite covers the store
-layer, the HTTP layer (host gate, content-type gate, body cap, traversal gate, routes), the
-document resolver, and the markdown parser, all against temporary directories. It never touches
-your real data store.
+No dependencies, no runner to install — `node --test` over `test/`. The suite covers:
+
+- the store layer and the HTTP layer (host gate, content-type gate, body cap, traversal gate,
+  routes);
+- messages to agents: claims and their expiry, revision checks, read receipts, routing rules,
+  and two separate processes racing to claim the same message;
+- the agent check: project and topic filtering, paging, and cards an agent is waiting on;
+- the new-arrival chime: what plays a sound, what stays quiet, and what happens when audio or
+  browser storage is unavailable;
+- `setup.js`, the document resolver, and the markdown parser.
+
+Everything runs against temporary directories and never touches your real data store.
+[GitHub Actions](.github/workflows/test.yml) runs the suite on Windows, macOS, and Linux for
+every push.
 
 ## Auto-start on login (optional)
 
