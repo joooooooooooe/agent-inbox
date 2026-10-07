@@ -20,6 +20,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 
 const store = require('./lib/store');
+const intake = require('./lib/submissions');
 
 const PROTOCOL_SOURCE = path.join(__dirname, 'protocol', 'PROTOCOL.md');
 const PORT = Number(process.env.AGENT_INBOX_PORT) || 7718; // not 7717: a real inbox may be up
@@ -190,6 +191,14 @@ function seed(dataDir) {
   const created = store.createRequest(dataDir, request, ago(filedHours));
   store.answerRequest(dataDir, created.id, { value, notes }, ago(answeredHours));
 
+  intake.create(dataDir, { project: 'orchard', title: 'Make sure saved messages are searchable',
+    message: 'Can people find an old message by its text? Check whether we have this or need to plan it.', priority: 'planned' }, ago(2));
+  const submission = intake.create(dataDir, { project: 'agent-inbox', title: 'Can I read linked documents?',
+    message: 'Check whether document links already open inside the Inbox.', priority: 'next_check' }, ago(1));
+  const claimed = intake.claim(dataDir, submission.id, { owner: 'demo-agent', expected_revision: 1 });
+  intake.respond(dataDir, submission.id, { owner: claimed.claim.owner, token: claimed.claim.token,
+    expected_revision: claimed.revision, status: 'closed', message: 'Yes. Document links open in the built-in reader. See README.md#reading-what-a-question-refers-to for an example.' });
+
   return REQUESTS.length + 1;
 }
 
@@ -235,6 +244,8 @@ function main() {
   console.log('Your own inbox is untouched: this never reads or writes ~/.agent-inbox.');
   console.log('');
   console.log('Things worth trying:');
+  console.log('  • Send a message to agents, then find it under For agents.');
+  console.log('  • Open Updates to read the sample agent response and mark it read.');
   console.log('  • Answer the top request — watch it leave "Needs you" and land in "Answered".');
   console.log('  • Open "S1 blocked on D-103 exception scope": it is written in agent jargon,');
   console.log('    so it carries a CLARITY badge. Use "Return for rewrite" to bounce it back.');

@@ -17,6 +17,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 
 const SERVER = path.join(__dirname, '..', 'server.js');
+const intake = require('../lib/submissions');
 
 let dataDir;
 let repoDir;
@@ -118,6 +119,33 @@ test.before(async () => {
 test.after(() => {
   try { child.kill(); } catch (_) { /* already exited */ }
   try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch (_) { /* best effort */ }
+});
+
+test('operator intake over HTTP preserves claims on read and rejects stale replies after correction', async () => {
+  const created = await postJson('/api/submissions', { project: 'demo', message: 'Please check moving platforms.', priority: 'next_check' });
+  assert.strictEqual(created.status, 201);
+  const s = created.json.submission;
+  const a = intake.claim(dataDir, s.id, { owner: 'test-owner', expected_revision: s.revision });
+  const update = intake.respond(dataDir, s.id, { owner: a.claim.owner, token: a.claim.token, expected_revision: a.revision,
+    status: 'checking', message: 'Checking the existing implementation.' });
+  const state = await rawRequest({ pathname: '/api/state' });
+  const shown = state.json.submissions.find((r) => r.id === s.id);
+  assert.strictEqual(shown.unread, true);
+  assert.strictEqual(shown.claim.token, undefined);
+  const read = await postJson(`/api/submissions/${s.id}/read`, { through: 0 });
+  assert.strictEqual(read.status, 200); assert.strictEqual(read.json.submission.revision, update.revision);
+  const edited = await postJson(`/api/submissions/${s.id}/operator`, { action: 'reply', expected_revision: update.revision, message: 'Online support too.' });
+  assert.strictEqual(edited.status, 200); assert.strictEqual(edited.json.submission.claim, null);
+  assert.throws(() => intake.respond(dataDir, s.id, { owner: a.claim.owner, token: a.claim.token, expected_revision: update.revision,
+    status: 'closed', message: 'Old result.' }), /changed/);
+  const stale = await postJson(`/api/submissions/${s.id}/operator`, { action: 'withdraw', expected_revision: update.revision });
+  assert.strictEqual(stale.status, 409);
+  const checked = await postJson('/api/check', { project: 'demo', topic: 'unrelated' });
+  assert.strictEqual(checked.status, 200); assert.ok(checked.json.next_check.items.some((r) => r.id === s.id));
+  const doc = await postJson('/api/file', { id: s.id, path: 'docs/note.md' });
+  assert.strictEqual(doc.status, 200); assert.match(doc.json.markdown, /design note/);
+  const traverse = await postJson('/api/submissions/sub-%2e%2e%2fescape/operator', { action: 'withdraw', expected_revision: 1 });
+  assert.strictEqual(traverse.status, 400);
 });
 
 // ---------------------------------------------------------------------------
@@ -363,4 +391,13 @@ test('GET /markdown.js serves the renderer the page needs', async () => {
   assert.strictEqual(res.status, 200);
   assert.match(res.headers['content-type'], /javascript/);
   assert.match(res.text, /parseInline/);
+});
+
+test('GET /notifications.js serves the chime module referenced by the app shell', async () => {
+  const res = await rawRequest({ pathname: '/notifications.js' });
+  assert.strictEqual(res.status, 200);
+  assert.match(res.headers['content-type'], /javascript/);
+  assert.match(res.text, /createTracker/);
+  const shell = await rawRequest({ pathname: '/' });
+  assert.match(shell.text, /src="\/notifications.js"/);
 });

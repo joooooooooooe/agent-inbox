@@ -46,7 +46,17 @@ function runSetup({ homeDir }) {
   const boot = store.ensureStore(dataDir, PROTOCOL_SOURCE);
   const skillDest = path.join(homeDir, '.claude', 'skills', 'agent-inbox', 'SKILL.md');
   const skillStatus = installRenderedFile(SKILL_SOURCE, skillDest, dataDir);
-  return { dataDir, boot, skillDest, skillStatus };
+  // One shared skill for harnesses that discover ~/.agents (including Codex).
+  const sharedSkillDest = path.join(homeDir, '.agents', 'skills', 'agent-inbox', 'SKILL.md');
+  const sharedSkillStatus = installRenderedFile(SKILL_SOURCE, sharedSkillDest, dataDir);
+  const toolRoot = path.join(dataDir, 'tools');
+  for (const relative of ['agent.js', 'lib/store.js', 'lib/submissions.js', 'lib/check.js']) {
+    const destination = path.join(toolRoot, relative);
+    const source = fs.readFileSync(path.join(__dirname, relative), 'utf8');
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    if (!fs.existsSync(destination) || fs.readFileSync(destination, 'utf8') !== source) store.atomicWriteFile(destination, source);
+  }
+  return { dataDir, boot, skillDest, skillStatus, sharedSkillDest, sharedSkillStatus, toolRoot };
 }
 
 function main() {
@@ -58,13 +68,15 @@ function main() {
   console.log(`Data store:   ${dataDir}  (${boot.created ? 'created' : 'already existed'})`);
   console.log(`PROTOCOL.md:  ${boot.protocolSynced ? 'synced (rendered for this machine)' : 'already current'}`);
   console.log(`Claude skill: ${skillDest}  (${skillStatus})`);
+  console.log(`Shared skill: ${result.sharedSkillDest}  (${result.sharedSkillStatus})`);
+  console.log(`Project check: node "${path.join(result.toolRoot, 'agent.js')}" check <project>`);
   console.log('');
   console.log('Next steps');
   console.log(`  1. Register this machine's projects: edit ${path.join(dataDir, 'projects.json')}`);
   console.log('     (slug -> { "name", "repo", optional "mirror" relative to repo — see README).');
-  console.log(`  2. For Codex-driven repos, paste the "Asking the operator (Agent Inbox)" snippet from`);
+  console.log(`  2. For repos that do not discover shared skills, paste the "Operator messages" snippet from`);
   console.log(`     ${path.join(dataDir, 'PROTOCOL.md')} (section 5) into each repo's AGENTS.md.`);
-  console.log('     (Claude picks the skill up machine-wide automatically.)');
+  console.log('     (Claude and Codex discover the installed skills automatically.)');
   console.log('  3. Run start-inbox.cmd (or: node server.js) and open http://127.0.0.1:7717');
   console.log('  4. Optional: auto-start via Task Scheduler — see README.md.');
   console.log('');

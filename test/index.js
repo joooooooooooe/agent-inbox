@@ -8,3 +8,5 @@ require('./documents.test.js');
 require('./linkify.test.js');
 require('./server.test.js');
 require('./markdown.test.js');
+require('./submissions.test.js');
+require('./notifications.test.js');

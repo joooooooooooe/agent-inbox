@@ -10,6 +10,8 @@ const os = require('node:os');
 
 const store = require('./lib/store');
 const documents = require('./lib/documents');
+const submissions = require('./lib/submissions');
+const { check } = require('./lib/check');
 
 const DATA_DIR = process.env.AGENT_INBOX_DATA_DIR || path.join(os.homedir(), '.agent-inbox');
 const PORT = Number(process.env.AGENT_INBOX_PORT) || 7717;
@@ -115,6 +117,20 @@ function serveIndex(res) {
 }
 
 function handlePost(pathname, body, res) {
+  if (pathname === '/api/check') return sendJson(res, 200, check(DATA_DIR, body.project, body));
+  if (pathname === '/api/submissions') {
+    return sendJson(res, 201, { submission: submissions.publicRecord(submissions.create(DATA_DIR, body)) });
+  }
+  const submissionAction = /^\/api\/submissions\/([^/]+)\/(operator|read)$/.exec(pathname);
+  if (submissionAction) {
+    let id;
+    try { id = decodeURIComponent(submissionAction[1]); }
+    catch (_) { return sendJson(res, 400, { error: 'invalid submission id' }); }
+    const result = submissionAction[2] === 'read'
+      ? submissions.markRead(DATA_DIR, id, body.through)
+      : submissions.operatorUpdate(DATA_DIR, id, body);
+    return sendJson(res, 200, { submission: submissions.publicRecord(result) });
+  }
   if (pathname === '/api/file') {
     // Read a document a card links to, so the app can render it in place.
     // resolveMarkdownPath is the boundary: repo-relative, inside that card's
@@ -175,16 +191,22 @@ const server = http.createServer((req, res) => {
 
     if (req.method === 'GET' || req.method === 'HEAD') {
       if (pathname === '/' || pathname === '/index.html') return serveIndex(res);
-      // The two browser modules that are also unit-tested under node, so they
+      // Browser modules that are also unit-tested under node, so they
       // cannot live inline in the page.
-      if (pathname === '/linkify.js' || pathname === '/markdown.js') {
+      if (['/linkify.js', '/markdown.js', '/notifications.js'].includes(pathname)) {
         return serveStatic(
           res,
           path.join(__dirname, 'public', pathname.slice(1)),
           'application/javascript; charset=utf-8',
         );
       }
-      if (pathname === '/api/state') return sendJson(res, 200, store.getState(DATA_DIR));
+      if (pathname === '/api/state') {
+        const state = store.getState(DATA_DIR);
+        const intake = submissions.list(DATA_DIR);
+        state.submissions = intake.submissions.map(submissions.publicRecord);
+        state.invalid.push(...intake.invalid);
+        return sendJson(res, 200, state);
+      }
       if (pathname.startsWith('/api/')) return sendJson(res, 404, { error: 'not found' });
       return sendJson(res, 404, { error: 'not found' });
     }

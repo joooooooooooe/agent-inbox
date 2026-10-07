@@ -61,6 +61,12 @@ test('runSetup against an explicit homeDir: seeds store, installs rendered skill
   assert.ok(skill.includes(`${dataDir}\\PROTOCOL.md`));
   assert.match(skill, /^---\r?\nname: agent-inbox/, 'frontmatter intact');
   assert.ok(skill.includes('dev/agent-answers.md'), 'illustrative MyProject mirror example kept');
+  assert.equal(fs.readFileSync(first.sharedSkillDest, 'utf8'), skill);
+  assert.ok(fs.existsSync(path.join(first.toolRoot, 'agent.js')));
+  const { spawnSync } = require('node:child_process');
+  const checked = spawnSync(process.execPath, [path.join(first.toolRoot, 'agent.js'), 'check', 'demo', '--data-dir', dataDir], { encoding: 'utf8' });
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.equal(JSON.parse(checked.stdout).submissions.total, 0);
 
   // Re-run: nothing to do.
   const second = setup.runSetup({ homeDir });

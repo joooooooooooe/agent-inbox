@@ -1,6 +1,40 @@
 # Agent Inbox
 
-**A shared to-do list of questions your coding agents need you to answer.**
+**One place for agents to ask you—and for you to send questions and ideas back.**
+
+Use **Send to agents** to capture a message without deciding whether it is a bug, an
+existing feature, or future work. Choose a project (or **Not sure**) and one of three
+priorities: **Address Now**, **Fit into planned work**, or **Keep for later**.
+The app does not launch or interrupt an agent. An eligible owner picks it up at an
+existing Inbox checkpoint, checks what exists/plans, and replies with findings and
+where any work belongs. Priority controls the response checkpoint, not a delivery promise.
+
+**Needs you** retains agent questions. **For agents** shows your intake and questions
+returned for rewriting. **Updates** shows unread agent responses; **History** holds
+resolved items. You can reply, change priority/project, withdraw, or reopen. Original
+messages are preserved. A linked plan is labelled as scheduled work, not completed work.
+
+While the inbox page is open, a soft two-note chime announces new agent questions
+and replies across all projects. Click **Enable sound** once after opening the page
+(browsers need a click before playing audio), use **Test sound** to preview it, and
+click **Sound on** to mute. The sound preference is remembered in this browser.
+Existing messages on page load, your own messages, and read/status changes stay
+quiet; multiple arrivals in one refresh play one chime. The page must stay open;
+background browser throttling can delay a chime.
+
+Agent startup remains one check, not a new reading path:
+
+```text
+node "<data-dir>/tools/agent.js" check <project> --topic "your task" --request <awaited-id>
+```
+
+The optional topic narrows discovery; explicit awaited cards and next-check submissions
+remain visible. Results are bounded previews with file paths and explicit pagination.
+Open only relevant records. Unassigned intake appears as at most three routing-only
+previews for owners; bounded workers do not investigate other projects. No global
+"consumed" flag hides a message from a later agent. `--help` explains action commands
+when needed. Existing answer digests remain searchable history, not mandatory startup
+reading. The helper and file protocol work with the server closed.
 
 When you have several coding agents working across several repositories, they keep hitting
 decisions only you can make: what should this be called, which of these two behaviours do we
@@ -28,8 +62,8 @@ step, no dependencies — the whole project is Node's standard library and one H
 Requires Node 20 or newer. Three things are worth trying once it opens:
 
 - **Answer the top question** and watch it move to the Answered tab.
-- **Open "S1 blocked on D-103 exception scope."** It is written in agent jargon and carries a
-  `CLARITY` badge because of it. Hit **Return for rewrite** to bounce it back to the agent.
+- **Open "S1 blocked on D-103 exception scope."** It shows the app's advisory `CLARITY`
+  badge. **Return for rewrite** sends a request back to the agent with your reason.
 - **Look at `answers/orchard.md`** in the store it names on startup. That generated file is
   what the agent reads to learn what you decided.
 
@@ -51,27 +85,19 @@ can write a file are all first-class, because writing a file is the entire integ
   PROTOCOL.md            the contract agents read
   projects.json          registry: slug -> { name, repo, mirror? }
   requests/<id>.json     one file per question; the answer is written into the same file
+  submissions/sub-<id>.json  operator intake, claims, attributed replies, linked work
   answers/<slug>.md      generated digest of settled questions, per project
+  tools/agent.js         installed offline combined check and claim/response helper
 ```
 
-### Questions have to be answerable
+### Keep instructions and technical details separate
 
-The interesting constraint is not the file format, it is the writing bar. A question is only
-useful if you can answer it without reloading the whole project into your head, so the
-protocol makes that a rule rather than a hope:
+Put the question or operator action in `ask`, shared context in `background`, and each
+option's effect and cost in its `description`. Supporting file paths, symbols, decision
+references, and implementation notes go in `technical_context`, which the app keeps collapsed.
 
-> Could a person who has never seen the project answer this in 60 seconds, using only the text
-> on the card?
-
-File paths, symbol names, ticket IDs and section references are **banned** from every field
-you read, and quarantined in a `technical_context` field the app keeps collapsed. The app
-lints for violations and flags them, and you can bounce a bad question back to its author with
-one click — it returns to the agent with a reason, and the agent rewrites it and re-files.
-
-This is the part most worth stealing. An agent asked to write for a reader who has never seen
-the codebase asks a visibly better question, and the failure mode it prevents — a question
-technically answerable but practically unanswerable, so it sits there — is the one that
-actually kills this kind of tool.
+The app's existing clarity checks are advisory. You can return a request to its author with
+a specific reason; the agent addresses that feedback and reopens it.
 
 ### Reading what a question refers to
 
@@ -99,8 +125,8 @@ node setup.js
 ```
 
 `setup.js` is idempotent and safe to re-run. It creates the data store at `~/.agent-inbox`,
-writes `PROTOCOL.md` there with this machine's paths filled in, and installs a Claude skill at
-`~/.claude/skills/agent-inbox/` so Claude Code picks it up in every project on the machine.
+writes `PROTOCOL.md` with this machine's paths, installs the offline helper and skills at
+`~/.claude/skills/agent-inbox/` and `~/.agents/skills/agent-inbox/` for Claude and Codex.
 
 Then start it:
 
@@ -141,6 +167,9 @@ a warning.
 
 Questions from unregistered projects still work; registering only adds the display name,
 mirroring, and document links.
+
+Set an optional top-level `"default_project": "myproject"` in this registry to choose
+the initial project in Send to agents. Display names come from each project's `name`.
 
 ### Point your agents at it
 
@@ -207,12 +236,24 @@ Localhost only. POSTs require `Content-Type: application/json`.
 
 | Route | Method | Purpose |
 |---|---|---|
-| `/api/state` | GET | `{ projects, requests, invalid }` — read fresh from disk every call |
+| `/api/state` | GET | `{ projects, requests, submissions, invalid }` — read fresh from disk every call |
+| `/api/submissions` | POST | `{ project?, message, title?, priority? }` — operator intake |
+| `/api/submissions/<id>/operator` | POST | `{ expected_revision, action, ... }` — reply, priority, project, withdraw, reopen |
+| `/api/submissions/<id>/read` | POST | `{ through }` — mark displayed events read, without changing claim/revision |
+| `/api/check` | POST | `{ project, topic?, requests?, offset?, limit?, since? }` — same compact combined project check |
 | `/api/requests` | POST | Create a question |
 | `/api/requests/<id>/answer` | POST | `{ value, notes?, force? }` — answer it; `409` if already settled unless `force` |
 | `/api/requests/<id>/status` | POST | `{ status, superseded_by?, returned_reason? }` — reopen, withdraw, supersede, or return for rewrite |
 | `/api/requests/<id>/archive` | POST | File a settled question away |
 | `/api/file` | POST | `{ id, path }` — read a markdown document from that question's repo |
+
+Submission writes from the UI and agent helper share an exclusive filesystem mutation
+lock. Agent claims expire after 30 minutes; response writes require the current revision
+and claim owner/token. Operator corrections invalidate stale claims, while read receipts
+do not. Agent responses never enter the operator's standing-answer digests. If a process
+crashes during a short mutation, the leftover lock is reported rather than automatically
+stolen. Check its recorded process before removing it. Existing question files keep their
+v1 schema; there is no migration of answers or question history.
 
 ## How this was built
 

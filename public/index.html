@@ -569,11 +569,15 @@
   <div class="counts">
     <span class="count-chip">Needs You <b id="count-open">0</b></span>
     <span class="count-chip hot">Blocking <b id="count-blocking">0</b></span>
-    <span class="count-chip">Waiting on agent <b id="count-waiting">0</b></span>
+    <span class="count-chip">Rewrites <b id="count-waiting">0</b></span>
     <span class="count-chip good">Answered Today <b id="count-today">0</b></span>
+    <span class="count-chip">For agents <b id="count-intake">0</b></span>
+    <span class="count-chip">Updates <b id="count-updates">0</b></span>
   </div>
   <div class="spacer"></div>
-  <button class="btn primary" id="btn-new">+ New request</button>
+  <button class="btn small" id="btn-sound" type="button" aria-pressed="false">Enable sound</button>
+  <button class="btn small" id="btn-test-sound" type="button" title="Preview the notification chime">Test sound</button>
+  <button class="btn primary" id="btn-new">+ Send to agents</button>
 </header>
 
 <div id="offline-banner" hidden>Server unreachable — showing last known data.</div>
@@ -582,8 +586,11 @@
   <nav class="tabs" id="tabs">
     <button data-filter="all">All</button>
     <button data-filter="needs" class="active">Needs you</button>
+    <button data-filter="agents">For agents</button>
+    <button data-filter="updates">Updates</button>
     <button data-filter="blocking">Blocking</button>
     <button data-filter="answered">Answered</button>
+    <button data-filter="history">History</button>
   </nav>
   <input id="search" type="search" placeholder="Search title, ask, project…" autocomplete="off">
 </div>
@@ -605,6 +612,23 @@
 
 <div id="toasts"></div>
 
+<dialog id="intake-dialog">
+  <div class="dialog-head"><span>Send to agents</span><button class="btn small" id="intake-cancel" type="button">Close</button></div>
+  <form class="dialog-body" id="intake-form">
+    <div class="field"><label for="intake-project">Project</label><select id="intake-project"></select></div>
+    <div class="field"><label for="intake-message">Message</label><textarea id="intake-message" required maxlength="20000" placeholder="A question, idea, or something you want checked or handled…" style="min-height:130px"></textarea></div>
+    <div class="field"><label for="intake-priority">Priority</label><select id="intake-priority">
+      <option value="next_check">Address Now</option>
+      <option value="planned" selected>Fit into planned work</option>
+      <option value="later">Keep for later</option>
+    </select><div class="hint" id="priority-help">Check what exists and where it belongs; fit resulting work into the plan.</div></div>
+    <details><summary style="color:var(--text-dim);cursor:pointer">Optional title</summary><div class="field"><label for="intake-title">Title</label><input type="text" id="intake-title" maxlength="200" placeholder="Defaults to first line of message if left blank"></div></details>
+    <p class="hint" style="color:var(--text-dim);font-size:12px">Agents pick this up at an Inbox checkpoint. This does not wake an agent. They check and route it; any implementation follows your message and the project's existing scope.</p>
+    <div class="form-error" id="intake-error" hidden></div>
+    <div class="actions"><button class="btn primary" id="intake-submit" type="submit">Send to agents</button></div>
+  </form>
+</dialog>
+
 <dialog id="doc-dialog">
   <div class="dialog-head">
     <div>
@@ -618,79 +642,10 @@
   <div class="doc-body"><div class="doc" id="doc-content"></div></div>
 </dialog>
 
-<dialog id="new-dialog">
-  <div class="dialog-head">
-    <span>New request</span>
-    <button class="btn small" id="new-cancel" type="button">Close</button>
-  </div>
-  <div class="dialog-body">
-    <div class="field-row">
-      <div class="field">
-        <label for="nr-project">Project slug</label>
-        <input type="text" id="nr-project" placeholder="myproject">
-        <div class="hint">lowercase letters, digits, hyphens</div>
-      </div>
-      <div class="field">
-        <label for="nr-agent">Agent</label>
-        <input type="text" id="nr-agent" placeholder="human" value="human">
-      </div>
-    </div>
-    <div class="field">
-      <label for="nr-title">Title</label>
-      <input type="text" id="nr-title" placeholder="Choose storage format for answers">
-    </div>
-    <div class="field">
-      <label for="nr-ask">Ask</label>
-      <textarea id="nr-ask" placeholder="One or two sentences: the actual question or decision needed."></textarea>
-    </div>
-    <div class="field">
-      <label for="nr-background">Background (one bullet per line)</label>
-      <textarea id="nr-background"></textarea>
-      <div class="hint">plain language only — a non-technical reader must be able to decide from this</div>
-    </div>
-    <div class="field">
-      <label for="nr-tech">Agent-to-agent notes, technical (one per line, optional)</label>
-      <textarea id="nr-tech"></textarea>
-      <div class="hint">file paths, symbols, IDs and other jargon go here, never in the fields above</div>
-    </div>
-    <div class="field-row">
-      <div class="field">
-        <label for="nr-urgency">Urgency</label>
-        <select id="nr-urgency">
-          <option value="high">high</option>
-          <option value="medium" selected>medium</option>
-          <option value="low">low</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="nr-type">Response type</label>
-        <select id="nr-type">
-          <option value="choice">choice — pick one</option>
-          <option value="multi_select">multi_select — pick any</option>
-          <option value="text">text — free text</option>
-          <option value="checklist">checklist — tick items</option>
-          <option value="approval">approval — approve / reject</option>
-        </select>
-      </div>
-    </div>
-    <div class="check-field">
-      <input type="checkbox" id="nr-blocking">
-      <label for="nr-blocking" style="margin:0">Blocking — the agent is stopped until this is answered</label>
-    </div>
-    <div class="field" id="nr-options-field">
-      <label>Options (key / label / description)</label>
-      <div id="nr-options"></div>
-      <button class="btn small" type="button" id="nr-add-option">+ Add option</button>
-    </div>
-    <div class="form-error" id="nr-error" hidden></div>
-    <div class="actions">
-      <button class="btn primary" id="nr-submit" type="button">Create request</button>
-    </div>
-  </div>
-</dialog>
 
 <script src="/linkify.js"></script>
 <script src="/markdown.js"></script>
+<script src="/notifications.js"></script>
 <script>
 'use strict';
 
@@ -704,8 +659,23 @@ let searchQuery = '';
 let detailDirty = false;           // user has unsaved input in the detail form
 let renderedDetailJson = null;     // serialized request as last rendered in detail
 let collectAnswer = null;          // set by renderDetail for the current form
+const intakeDrafts = new Map();    // preserve replies across refresh, priority and project changes
 
 const $ = (sel) => document.querySelector(sel);
+const notificationTracker = InboxNotifications.createTracker();
+const notificationSound = InboxNotifications.createSound(window, renderSoundControl);
+let fetchingState = false;
+
+function renderSoundControl() {
+  const button = $('#btn-sound');
+  const active = notificationSound.enabled && notificationSound.ready();
+  button.textContent = !notificationSound.supported ? 'Sound unavailable'
+    : !notificationSound.enabled ? 'Sound off' : active ? 'Sound on' : 'Enable sound';
+  button.setAttribute('aria-pressed', String(active));
+  button.title = active ? 'Mute notification chimes' : 'Enable chimes for new agent questions and replies';
+  button.disabled = !notificationSound.supported;
+  $('#btn-test-sound').disabled = !notificationSound.supported;
+}
 
 /* ========================= DOM helper (XSS-safe) =========================
    All agent-authored text flows through createTextNode / textContent.
@@ -948,7 +918,7 @@ function circularHueDist(a, b) {
 let assignedHues = {};
 
 function assignProjectHues() {
-  const slugs = [...new Set((state.requests || []).map((r) => String(r.project || '')))].sort();
+  const slugs = [...new Set(allRecords().map((r) => String(r.project || '')))].sort();
   const minSep = Math.min(60, 360 / Math.max(slugs.length, 1));
   const used = [];
   const map = {};
@@ -1037,6 +1007,12 @@ function isToday(iso) {
 /* ========================= fetch + poll ========================= */
 
 async function fetchState() {
+  if (fetchingState) return; // keep overlapping polls from accepting stale snapshots
+  fetchingState = true;
+  try { await refreshState(); } finally { fetchingState = false; }
+}
+
+async function refreshState() {
   // Narrow try: only fetch + parse. A render bug must not masquerade as
   // "server unreachable".
   let next;
@@ -1052,6 +1028,7 @@ async function fetchState() {
     return; // keep last data on screen
   }
   state = next;
+  if (notificationTracker.update(next)) notificationSound.play();
   setOffline(false);
   try {
     renderAll();
@@ -1128,26 +1105,46 @@ function renderCounts() {
   $('#count-today').textContent = reqs.filter(
     (r) => r.status === 'answered' && r.answer && isToday(r.answer.answered_at),
   ).length;
+  $('#count-intake').textContent = (state.submissions || []).filter((s) => !['closed', 'withdrawn'].includes(s.status)).length;
+  $('#count-updates').textContent = (state.submissions || []).filter((s) => s.unread).length;
+}
+
+function allRecords() {
+  return (state.requests || []).map((r) => ({ ...r, kind: 'question' })).concat((state.submissions || []).map((s) => ({ ...s, kind: 'submission' })));
 }
 
 function matchesFilter(r) {
+  if (r.kind === 'submission') {
+    if (activeFilter === 'agents') return !['closed', 'withdrawn'].includes(r.status);
+    if (activeFilter === 'updates') return r.unread;
+    if (activeFilter === 'history') return ['closed', 'withdrawn'].includes(r.status);
+    return activeFilter === 'all';
+  }
   switch (activeFilter) {
     case 'needs': return r.status === 'open';
     case 'blocking': return r.status === 'open' && r.blocking === true;
     case 'answered': return r.status === 'answered';
+    case 'history': return SETTLED_STATUSES.includes(r.status);
+    case 'agents': return r.status === 'returned';
+    case 'updates': return false;
     default: return true; // All: includes withdrawn/superseded/unknown
   }
 }
 
 function matchesSearch(r) {
   if (!searchQuery) return true;
-  const hay = `${r.title || ''} ${r.ask || ''} ${r.project || ''} ${projectName(r.project)}`.toLowerCase();
+  const hay = `${r.title || ''} ${r.ask || r.message || ''} ${r.project || ''} ${projectName(r.project)}`.toLowerCase();
   return hay.includes(searchQuery);
 }
 
 const URGENCY_RANK = { high: 0, medium: 1, low: 2 };
 
 function sortRequests(a, b) {
+  if (a.kind === 'submission' || b.kind === 'submission') {
+    const ranks = { next_check: 0, planned: 1, later: 2, high: 0, medium: 1, low: 2 };
+    if (activeFilter === 'updates') return String(b.updated || b.created).localeCompare(String(a.updated || a.created));
+    return (ranks[a.priority || a.urgency] ?? 3) - (ranks[b.priority || b.urgency] ?? 3) || String(a.created).localeCompare(String(b.created));
+  }
   const ab = a.status === 'open' && a.blocking === true ? 0 : 1;
   const bb = b.status === 'open' && b.blocking === true ? 0 : 1;
   if (ab !== bb) return ab - bb;
@@ -1160,10 +1157,11 @@ function sortRequests(a, b) {
 /* ========================= list ========================= */
 
 function visibleRequests() {
-  return (state.requests || []).filter((r) => matchesFilter(r) && matchesSearch(r)).sort(sortRequests);
+  return allRecords().filter((r) => matchesFilter(r) && matchesSearch(r)).sort(sortRequests);
 }
 
 function statusPill(r) {
+  if (r.kind === 'submission') return h('span', { class: 'pill st-open' }, intakeStatus(r));
   const known = ['open', 'answered', 'withdrawn', 'superseded', 'returned'];
   const cls = known.includes(r.status) ? `st-${r.status}` : 'st-unknown';
   return h('span', { class: `pill ${cls}` }, known.includes(r.status) ? r.status : `? ${r.status}`);
@@ -1180,13 +1178,20 @@ function renderList() {
   const rows = visibleRequests();
   if (rows.length === 0) {
     list.append(h('li', { class: 'list-empty' },
-      searchQuery ? 'No requests match your search.' : 'Nothing here. Agents will file requests as JSON files; they show up automatically.'));
+      searchQuery ? 'No messages match your search.' : ({ needs: 'Nothing needs your answer right now.',
+        agents: 'No active submissions. Use Send to agents to add a question or idea.',
+        updates: "You're caught up. New agent replies will appear here.",
+        history: 'No resolved messages yet.' }[activeFilter] || 'Nothing here yet.')));
     return;
   }
   for (const r of rows) {
     const badges = [h('span', { class: 'pill project' }, projectName(r.project))];
     if (r.status === 'open' && r.blocking === true) badges.push(h('span', { class: 'pill blocking' }, 'blocking'));
     if (['high', 'medium', 'low'].includes(r.urgency)) badges.push(h('span', { class: `pill urg-${r.urgency}` }, r.urgency));
+    if (r.kind === 'submission') {
+      badges.push(h('span', { class: `pill urg-${r.priority === 'next_check' ? 'high' : r.priority === 'later' ? 'low' : 'medium'}` }, priorityLabel(r.priority)));
+      if (r.unread) badges.push(h('span', { class: 'pill st-answered' }, 'new update'));
+    }
     const clarity = clarityPill(r);
     if (clarity) badges.push(clarity);
     badges.push(statusPill(r));
@@ -1217,7 +1222,7 @@ function selectRequest(id) {
 /* ========================= detail ========================= */
 
 function getSelected() {
-  return (state.requests || []).find((r) => r.id === selectedId) || null;
+  return allRecords().find((r) => r.id === selectedId) || null;
 }
 
 function syncDetail(force = false) {
@@ -1229,7 +1234,7 @@ function syncDetail(force = false) {
     collectAnswer = null;
     detail.replaceChildren(h('div', { class: 'detail-placeholder' },
       h('div', { class: 'big' }, '\u{1F4EC}'),
-      h('div', {}, selectedId ? 'This request is no longer on disk.' : 'Select a request to view and answer it.'),
+      h('div', {}, selectedId ? 'This message is no longer available.' : 'Select a message to view it.'),
     ));
     return;
   }
@@ -1472,6 +1477,7 @@ async function archiveRequest(req) {
 }
 
 function renderDetail(req) {
+  if (req.kind === 'submission') return renderIntake(req);
   collectAnswer = null;
   const detail = $('#detail');
   const kids = [];
@@ -1574,6 +1580,130 @@ function renderDetail(req) {
   detailDirty = false;
 }
 
+/* ========================= operator submissions ========================= */
+
+const PRIORITY_LABELS = { next_check: 'Address Now', planned: 'Fit into planned work', later: 'Keep for later' };
+const PRIORITY_HELP = {
+  next_check: 'Start checking this at the next Inbox checkpoint; answer or report a concrete blocker. Delivery timing is a separate decision.',
+  planned: 'Check what exists and where it belongs; fit resulting work into the plan.',
+  later: 'Preserve this for a relevant planning pass. It stays visible as deferred intake.',
+};
+function priorityLabel(p) { return PRIORITY_LABELS[p] || p; }
+function intakeStatus(s) {
+  if (s.status === 'checking') return s.claim && Date.parse(s.claim.expires_at) > Date.now() ? 'Checking' : 'Awaiting pickup';
+  return { submitted: 'Awaiting pickup', waiting: 'Needs your answer', routed: 'Linked to planned work',
+    deferred: 'Deferred', closed: 'Resolved', withdrawn: 'Withdrawn' }[s.status] || s.status;
+}
+function populateProjects(select, selected = 'unassigned') {
+  const projects = new Set(Object.keys(state.projects?.projects || {}));
+  for (const s of allRecords()) if (s.project && s.project !== 'unassigned') projects.add(s.project);
+  if (selected !== 'unassigned') projects.add(selected);
+  select.replaceChildren(h('option', { value: 'unassigned' }, 'Not sure — route it for me'),
+    ...[...projects].sort().map((p) => h('option', { value: p }, projectName(p))));
+  select.value = selected;
+}
+function openIntake() {
+  $('#intake-form').reset();
+  const projects = new Set(allRecords().map((r) => r.project).filter((p) => p !== 'unassigned'));
+  populateProjects($('#intake-project'), state.projects?.default_project || (projects.size === 1 ? [...projects][0] : 'unassigned'));
+  $('#priority-help').textContent = PRIORITY_HELP.planned;
+  $('#intake-error').hidden = true;
+  $('#intake-dialog').showModal();
+  $('#intake-message').focus();
+}
+function activateFilter(filter) {
+  activeFilter = filter;
+  for (const button of document.querySelectorAll('#tabs button')) button.classList.toggle('active', button.dataset.filter === filter);
+}
+async function submitIntake(ev) {
+  ev.preventDefault();
+  const button = $('#intake-submit'), error = $('#intake-error');
+  error.hidden = true;
+  button.disabled = true;
+  try {
+    const res = await api('/api/submissions', { project: $('#intake-project').value,
+      message: $('#intake-message').value, title: $('#intake-title').value, priority: $('#intake-priority').value });
+    if (!res.ok) { error.textContent = apiErrorText(res, 'Sending'); error.hidden = false; return; }
+    $('#intake-dialog').close();
+    activateFilter('agents');
+    await fetchState();
+    selectRequest(res.data.submission.id);
+    toast('Saved for the next eligible agent checkpoint.');
+  } finally { button.disabled = false; }
+}
+async function changeIntake(s, action, extra = {}) {
+  const res = await api(`/api/submissions/${encodeURIComponent(s.id)}/operator`, { action, expected_revision: s.revision, ...extra });
+  if (!res.ok) { toast(apiErrorText(res, 'Updating the submission'), 'error'); return false; }
+  if (action === 'reply') intakeDrafts.delete(s.id);
+  detailDirty = false;
+  renderedDetailJson = null;
+  await fetchState();
+  return true;
+}
+function renderIntake(s) {
+  collectAnswer = null;
+  const detail = $('#detail');
+  const kids = [h('div', { class: 'updated-hint', id: 'updated-hint', hidden: 'hidden' },
+    'This submission changed while you were typing. Your draft is preserved. Reselect it to load the current version before sending.'),
+    h('div', { class: 'row-badges' }, h('span', { class: 'pill project', style: `--proj-h:${hueFor(s.project)}` }, s.project === 'unassigned' ? 'Project not assigned' : projectName(s.project)),
+      h('span', { class: 'pill st-open' }, intakeStatus(s))),
+    h('div', { class: 'detail-title' }, s.title),
+    h('div', { class: 'detail-meta' }, `From you · ${localStamp(s.created)}`),
+    h('div', { class: 'section' }, h('h3', {}, 'Your original message'), h('div', { class: 'ask-text', style: 'white-space:pre-wrap' }, s.message)),
+  ];
+  if (s.claim && Date.parse(s.claim.expires_at) > Date.now()) kids.push(h('div', { class: 'answer-card' },
+    `Being checked by ${s.claim.owner}. Claim expires ${localStamp(s.claim.expires_at)}.`));
+  else if (s.status === 'submitted' || s.status === 'checking') kids.push(h('div', { class: 'detail-meta' },
+    'Awaiting pickup at an eligible agent checkpoint. No agent is automatically launched.'));
+  if (s.work) kids.push(h('div', { class: 'section' }, h('h3', {}, 'Work destination — scheduling is not completion'),
+    h('div', {}, `Owner: ${s.work.owner}`), h('div', {}, ...linkedText(s.work.reference, s.id))));
+  for (const requestId of s.request_ids || []) {
+    const question = (state.requests || []).find((r) => r.id === requestId);
+    kids.push(h('button', { class: 'btn small', type: 'button', onclick: () => {
+      if (!question) { toast('This question is archived or unavailable; its record remains in the request archive.', 'warn'); return; }
+      activateFilter(question.status === 'open' ? 'needs' : 'all');
+      selectRequest(requestId);
+    } }, `Related question: ${question?.title || requestId}`));
+  }
+  if (s.events.length) kids.push(h('div', { class: 'section' }, h('h3', {}, 'Conversation'),
+    s.events.map((e) => h('div', { class: `answer-card ${e.actor === 'agent' ? 'recorded' : ''}`, style: 'margin-bottom:10px' },
+      h('div', { class: 'answer-when' }, `${e.actor === 'operator' ? 'You' : `Agent · ${e.owner || 'unknown'}`} · ${localStamp(e.at)}`),
+      h('div', { class: 'answer-notes', style: 'white-space:pre-wrap' }, ...linkedText(e.message, s.id))))));
+  if (s.unread) kids.push(h('button', { class: 'btn small', type: 'button', onclick: async () => {
+    const res = await api(`/api/submissions/${encodeURIComponent(s.id)}/read`, { through: s.events.length - 1 });
+    if (!res.ok) toast(apiErrorText(res, 'Marking read'), 'error'); else await fetchState();
+  } }, 'Mark updates read'));
+  const priority = h('select', { id: 'detail-priority' }, Object.entries(PRIORITY_LABELS).map(([value, label]) => h('option', { value }, label)));
+  priority.value = s.priority;
+  kids.push(h('div', { class: 'section' }, h('label', { for: 'detail-priority' }, 'Priority'),
+    h('div', { class: 'actions', style: 'margin-top:6px' }, priority,
+      h('button', { class: 'btn small', type: 'button', onclick: () => changeIntake(s, 'priority', { priority: priority.value }) }, 'Save priority')),
+    h('div', { class: 'detail-meta', style: 'margin-top:6px' }, PRIORITY_HELP[s.priority])));
+  priority.addEventListener('change', () => { detailDirty = true; });
+  const project = h('select', { id: 'detail-project' });
+  populateProjects(project, s.project);
+  kids.push(h('details', {}, h('summary', { style: 'cursor:pointer;color:var(--text-dim)' }, 'Change project'),
+    h('div', { class: 'actions' }, project, h('button', { class: 'btn small', type: 'button', onclick: () => changeIntake(s, 'project', { project: project.value }) }, 'Assign project'))));
+  project.addEventListener('change', () => { detailDirty = true; });
+  const reply = h('textarea', { id: 'intake-reply', maxlength: '20000', placeholder: 'Add context or correct the interpretation…' });
+  reply.value = intakeDrafts.get(s.id) || '';
+  reply.addEventListener('input', () => { intakeDrafts.set(s.id, reply.value); detailDirty = true; });
+  const replyButton = h('button', { class: 'btn primary', type: 'button', onclick: async () => {
+    replyButton.disabled = true;
+    try { await changeIntake(s, 'reply', { message: reply.value }); } finally { replyButton.disabled = false; }
+  } }, ['closed', 'withdrawn'].includes(s.status) ? 'Reply and reopen' : 'Send reply');
+  kids.push(h('div', { class: 'section' }, h('label', { for: 'intake-reply' }, 'Reply'), reply, h('div', { class: 'actions' }, replyButton,
+    ['closed', 'withdrawn'].includes(s.status)
+      ? h('button', { class: 'btn', type: 'button', onclick: () => changeIntake(s, 'reopen') }, 'Reopen')
+      : h('button', { class: 'btn danger', type: 'button', onclick: () => changeIntake(s, 'withdraw') }, 'Withdraw'))));
+  detail.replaceChildren(...kids);
+  detailDirty = !!reply.value;
+}
+
+$('#intake-cancel').addEventListener('click', () => $('#intake-dialog').close());
+$('#intake-priority').addEventListener('change', () => { $('#priority-help').textContent = PRIORITY_HELP[$('#intake-priority').value]; });
+$('#intake-form').addEventListener('submit', submitIntake);
+
 /* ========================= problems strip ========================= */
 
 function renderProblems() {
@@ -1586,107 +1716,30 @@ function renderProblems() {
     h('li', {}, h('code', {}, i.file), ` — ${i.error}`)));
 }
 
-/* ========================= new request dialog ========================= */
-
-const OPTION_TYPES = ['choice', 'multi_select', 'checklist'];
-
-function addOptionRow(key = '', label = '', description = '') {
-  const row = h('div', { class: 'option-editor-row' },
-    h('input', { type: 'text', placeholder: 'key', value: key, 'data-role': 'key' }),
-    h('input', { type: 'text', placeholder: 'label', value: label, 'data-role': 'label' }),
-    h('input', { type: 'text', placeholder: 'description (optional)', value: description, 'data-role': 'desc' }),
-  );
-  row.append(h('button', { class: 'remove-opt', type: 'button', title: 'Remove option', onclick: () => row.remove() }, '×'));
-  $('#nr-options').append(row);
-}
-
-function newRequestPayload() {
-  const project = $('#nr-project').value.trim();
-  const title = $('#nr-title').value.trim();
-  const ask = $('#nr-ask').value.trim();
-  const type = $('#nr-type').value;
-  if (!/^[a-z0-9-]+$/.test(project)) return { error: 'Project slug must be lowercase letters, digits, hyphens.' };
-  if (!title) return { error: 'Title is required.' };
-  if (!ask) return { error: 'Ask is required.' };
-
-  const payload = {
-    project,
-    title,
-    ask,
-    agent: $('#nr-agent').value.trim() || 'human',
-    urgency: $('#nr-urgency').value,
-    blocking: $('#nr-blocking').checked,
-    response: { type },
-  };
-  const background = $('#nr-background').value.split('\n').map((s) => s.trim()).filter(Boolean);
-  if (background.length) payload.background = background;
-  const tech = $('#nr-tech').value.split('\n').map((s) => s.trim()).filter(Boolean);
-  if (tech.length) payload.technical_context = tech;
-
-  if (OPTION_TYPES.includes(type)) {
-    const options = [];
-    for (const row of document.querySelectorAll('#nr-options .option-editor-row')) {
-      const key = row.querySelector('[data-role=key]').value.trim();
-      const label = row.querySelector('[data-role=label]').value.trim();
-      const desc = row.querySelector('[data-role=desc]').value.trim();
-      if (!key && !label && !desc) continue; // blank row
-      if (!key) return { error: 'Every option needs a key.' };
-      const opt = { key };
-      if (label) opt.label = label;
-      if (desc) opt.description = desc;
-      options.push(opt);
-    }
-    if (options.length === 0) return { error: `Response type "${type}" needs at least one option.` };
-    const keys = options.map((o) => o.key);
-    if (new Set(keys).size !== keys.length) return { error: 'Option keys must be unique.' };
-    payload.response.options = options;
-  }
-  return { payload };
-}
-
-async function submitNewRequest() {
-  const errBox = $('#nr-error');
-  const built = newRequestPayload();
-  if (built.error) {
-    errBox.textContent = built.error;
-    errBox.hidden = false;
-    return;
-  }
-  errBox.hidden = true;
-  const res = await api('/api/requests', built.payload);
-  if (!res.ok) {
-    errBox.textContent = apiErrorText(res, 'Creating the request');
-    errBox.hidden = false;
-    return;
-  }
-  $('#new-dialog').close();
-  toast('Request created.', 'ok');
-  await fetchState();
-  if (res.data.request && res.data.request.id) selectRequest(res.data.request.id);
-}
-
-function resetNewDialog() {
-  $('#nr-project').value = '';
-  $('#nr-agent').value = 'human';
-  $('#nr-title').value = '';
-  $('#nr-ask').value = '';
-  $('#nr-background').value = '';
-  $('#nr-tech').value = '';
-  $('#nr-urgency').value = 'medium';
-  $('#nr-type').value = 'choice';
-  $('#nr-blocking').checked = false;
-  $('#nr-error').hidden = true;
-  $('#nr-options').replaceChildren();
-  addOptionRow();
-  addOptionRow();
-  toggleOptionsField();
-}
-
-function toggleOptionsField() {
-  $('#nr-options-field').style.display = OPTION_TYPES.includes($('#nr-type').value) ? '' : 'none';
-}
-
 /* ========================= wiring ========================= */
+
+$('#btn-sound').addEventListener('click', async () => {
+  if (notificationSound.enabled && notificationSound.ready()) {
+    notificationSound.setEnabled(false);
+  } else {
+    notificationSound.setEnabled(true);
+    if (await notificationSound.unlock()) notificationSound.play();
+    else toast('Sound could not start. Try Test sound.', 'error');
+  }
+});
+$('#btn-test-sound').addEventListener('click', async () => {
+  if (await notificationSound.unlock()) notificationSound.play(true);
+  else toast('Sound could not start. Check your browser sound settings.', 'error');
+});
+// Browsers require a user gesture after opening the page. Regular use also
+// unlocks enabled audio without interrupting the user with a prompt.
+function unlockSound(event) {
+  if (event.target.closest?.('#btn-sound, #btn-test-sound')) return;
+  if (notificationSound.enabled && !notificationSound.ready()) notificationSound.unlock();
+}
+document.addEventListener('click', unlockSound);
+document.addEventListener('keydown', unlockSound);
+renderSoundControl();
 
 function renderAll() {
   assignProjectHues();
@@ -1710,14 +1763,9 @@ $('#search').addEventListener('input', (e) => {
 });
 
 $('#btn-new').addEventListener('click', () => {
-  resetNewDialog();
-  $('#new-dialog').showModal();
+  openIntake();
 });
-$('#new-cancel').addEventListener('click', () => $('#new-dialog').close());
 $('#doc-close').addEventListener('click', () => $('#doc-dialog').close());
-$('#nr-add-option').addEventListener('click', () => addOptionRow());
-$('#nr-type').addEventListener('change', toggleOptionsField);
-$('#nr-submit').addEventListener('click', submitNewRequest);
 
 $('#back-btn').addEventListener('click', () => {
   $('#main').classList.remove('show-detail');
