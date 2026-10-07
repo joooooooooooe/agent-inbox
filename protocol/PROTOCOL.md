@@ -1,7 +1,7 @@
 # Agent Inbox — File Protocol (schema_version 1)
 
-Last updated: 2026-10-03. Canonical source: `protocol\PROTOCOL.md` in the agent-inbox repo
-(rendered and synced into `{{DATA_DIR}}\PROTOCOL.md` on every server boot; the repo copy wins).
+Last updated: 2026-10-07. Canonical source: `protocol/PROTOCOL.md` in the agent-inbox repo
+(rendered and synced into `{{DATA_DIR}}/PROTOCOL.md` on every server boot; the repo copy wins).
 
 This is the contract for coding agents (Claude Code, Codex, etc.) that need a decision from
 the operator — the person whose inbox this is. **The file protocol is the contract; the app
@@ -13,18 +13,18 @@ server needs to be running for you to file a request or read an answer.
 | Thing | Path |
 |---|---|
 | Data store root | `{{DATA_DIR}}` |
-| This document (in the store) | `{{DATA_DIR}}\PROTOCOL.md` |
-| Requests (one JSON file each) | `{{DATA_DIR}}\requests\<id>.json` |
-| Archived requests (settled, filed away) | `{{DATA_DIR}}\requests\archive\<id>.json` |
-| Answered digests (per project, newest 50) | `{{DATA_DIR}}\answers\<slug>.md` |
-| Digest archive (entries older than the 50) | `{{DATA_DIR}}\answers\<slug>-archive.md` |
-| Project registry | `{{DATA_DIR}}\projects.json` |
-| Operator submissions | `{{DATA_DIR}}\submissions\sub-<id>.json` |
+| This document (in the store) | `{{DATA_DIR}}/PROTOCOL.md` |
+| Requests (one JSON file each) | `{{DATA_DIR}}/requests/<id>.json` |
+| Archived requests (settled, filed away) | `{{DATA_DIR}}/requests/archive/<id>.json` |
+| Answered digests (per project, newest 50) | `{{DATA_DIR}}/answers/<slug>.md` |
+| Digest archive (entries older than the 50) | `{{DATA_DIR}}/answers/<slug>-archive.md` |
+| Project registry | `{{DATA_DIR}}/projects.json` |
+| Operator submissions | `{{DATA_DIR}}/submissions/sub-<id>.json` |
 | Offline agent helper | `{{DATA_DIR}}/tools/agent.js` |
 
 Some projects also carry an **in-repo mirror** of their digest (for example
-`dev\agent-answers.md` inside the project repo). The mirror is identical to
-`answers\<slug>.md` (the capped main digest only — the digest archive is never mirrored);
+`dev/agent-answers.md` inside the project repo). The mirror is identical to
+`answers/<slug>.md` (the capped main digest only — the digest archive is never mirrored);
 prefer the mirror when your project has one — it is inside your own repo and needs no extra
 permissions.
 
@@ -66,7 +66,7 @@ long document for the paragraph you meant. Put supporting references in `technic
 
 ## 2. Request file schema
 
-**Filename:** `<id>.json` inside `requests\`, where
+**Filename:** `<id>.json` inside `requests/`, where
 
 ```
 id = <YYYYMMDD>-<project>-<kebab-short-title>-<4 random hex>
@@ -80,7 +80,7 @@ id = <YYYYMMDD>-<project>-<kebab-short-title>-<4 random hex>
 - The whole id must match `^[A-Za-z0-9-]+$` and be at most 200 chars. The **filename (minus
   `.json`) is the canonical id**; keep the `id` field in the body equal to it.
 
-**Complete worked example** (`requests\20260807-myproject-full-text-toggle-a1b2.json`):
+**Complete worked example** (`requests/20260807-myproject-full-text-toggle-a1b2.json`):
 
 ```json
 {
@@ -154,7 +154,7 @@ metadata (prefix it, e.g. `x_my_agent_state`) and it will survive.
 | `superseded` | agent or app | Replaced; follow `superseded_by`, never act on this one. |
 
 Settled requests (`answered`/`withdrawn`/`superseded`) may be moved by the app into
-`requests\archive\` to keep the live folder small. Digests are unaffected by archiving.
+`requests/archive/` to keep the live folder small. Digests are unaffected by archiving.
 
 ### Response types
 
@@ -210,9 +210,9 @@ Notes:
 1. **Use the card structure in section 1.** Keep the question or operator action separate
    from supporting engineering details in `technical_context`.
 2. **Search before you file.** Check the answered digest for your project (in-repo mirror if
-   present, else `{{DATA_DIR}}\answers\<project>.md`, plus
-   `answers\<project>-archive.md` for older history) AND scan
-   `{{DATA_DIR}}\requests\` for open requests about the same topic. **Do not
+   present, else `{{DATA_DIR}}/answers/<project>.md`, plus
+   `answers/<project>-archive.md` for older history) AND scan
+   `{{DATA_DIR}}/requests/` for open requests about the same topic. **Do not
    re-ask an answered question, and do not duplicate an open one.**
 3. **One decision per request.** If you need three decisions, file three requests. Never
    bundle.
@@ -247,8 +247,8 @@ Notes:
    relevant records. This check requires no extra plans, roadmap, or global history reads.
 2. The digest is generated — **never edit it**; edits are overwritten on the next change.
 3. The **JSON request file is the machine-readable record**. To poll a request you filed,
-   re-read the whole file `requests\<id>.json` (falling back to
-   `requests\archive\<id>.json` if it moved) and check `status`:
+   re-read the whole file `requests/<id>.json` (falling back to
+   `requests/archive/<id>.json` if it moved) and check `status`:
    - `"answered"` → act on `answer.value` (+ `answer.notes`).
    - `"open"` → not answered yet; keep waiting (or proceed if you filed non-blocking).
    - `"returned"` → **the operator requested a revision.** Read `returned_reason`,
@@ -274,9 +274,9 @@ At task start, check operator responses and submissions relevant to this project
 and `--request <id>` for awaited cards. Open only relevant named files. Owners repeat at
 existing next-work/handoff checkpoints; workers stay within their assigned scope.
 When blocked on a decision only the operator can make, file a request as a JSON file in
-`{{DATA_DIR}}\requests\` following `{{DATA_DIR}}\PROTOCOL.md`.
+`{{DATA_DIR}}/requests/` following `{{DATA_DIR}}/PROTOCOL.md`.
 Before filing, check the answered digest (in-repo mirror if present, else
-`{{DATA_DIR}}\answers\<project>.md`) — do not re-ask answered questions.
+`{{DATA_DIR}}/answers/<project>.md`) — do not re-ask answered questions.
 Answers here are the operator's direction, but durable decisions must still be promoted into this
 repo's own docs per its rules.
 ```

@@ -103,15 +103,16 @@ test('ensureStore renders {{DATA_DIR}} tokens in PROTOCOL.md for this machine', 
   const dataDir = path.join(makeTmp(), 'store');
   const protoSrc = path.join(makeTmp(), 'PROTOCOL.md');
   fs.writeFileSync(protoSrc,
-    '# protocol\nFile requests in `{{DATA_DIR}}\\requests\\`.\nRegistry: {{DATA_DIR}}\\projects.json\n',
+    '# protocol\nFile requests in `{{DATA_DIR}}/requests/`.\nRegistry: {{DATA_DIR}}/projects.json\n',
     'utf8');
 
   const first = store.ensureStore(dataDir, protoSrc);
   assert.equal(first.protocolSynced, true);
   const synced = fs.readFileSync(path.join(dataDir, 'PROTOCOL.md'), 'utf8');
+  const rendered = dataDir.replace(/\\/g, '/');
   assert.ok(!synced.includes('{{DATA_DIR}}'), 'no unrendered tokens may remain');
-  assert.ok(synced.includes(`${dataDir}\\requests\\`), 'token became the real data dir');
-  assert.ok(synced.includes(`${dataDir}\\projects.json`));
+  assert.ok(synced.includes(`${rendered}/requests/`), 'token became the real data dir');
+  assert.ok(synced.includes(`${rendered}/projects.json`));
 
   // Idempotent per machine: rendered copy is already current on the next boot.
   const second = store.ensureStore(dataDir, protoSrc);

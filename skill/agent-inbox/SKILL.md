@@ -1,57 +1,62 @@
 ---
 name: agent-inbox
-description: Check operator responses and submissions relevant to this project at task start and existing owner checkpoints. Also use for decisions, approvals, information, and playtests only the operator can provide.
+description: Reads and writes the operator's Agent Inbox, a local file-based queue of cards that carry questions to the operator and messages from them. Use at task start and at handoff checkpoints to check for operator replies and new cards, and whenever blocked on a decision, approval, information, or playtest only the operator can provide.
+compatibility: Requires Node 20 or newer and local read/write access to {{DATA_DIR}}.
 ---
 
 # Agent Inbox
 
-The operator's shared Inbox uses files and works with the web app closed.
-At task start, **check operator responses and submissions relevant to this project**:
+The Inbox is a folder of cards and works with the web app closed. Cards you file ask the
+operator something; cards from the operator bring you a message to check, route, or act on.
+
+At task start, check the cards relevant to this project:
 
 ```text
-node "{{DATA_DIR}}/tools/agent.js" check <project> --topic "your task" --request <awaited-id>
+node "{{DATA_DIR}}/tools/agent.js" check <project> --topic "your task" --request <card-id>
 ```
 
-Omit optional `--topic` / `--request` when unnecessary; repeat `--request` for awaited
-cards. Named cards bypass discovery filters, including archives and current non-answer
-statuses. Next-check submissions bypass topic narrowing. Output is short previews and
-named file paths; open only relevant records. `next_offset` announces more pages;
-page through next-check entries before selecting discretionary work. Search by topic
-before re-asking an old question; `--include-later` includes planning inputs. No global
-read receipt consumes a message on behalf of other agents.
+Add `--topic` to narrow the check to your task, and one `--request` for each card you are
+waiting on. The output is short previews with file paths; open only the relevant cards. If a
+section shows `next_offset`, page through the next-check cards before choosing other work.
+Check by topic before filing a card that may already be answered; `--include-later` adds
+cards the operator kept for later planning.
 
-This **replaces** routine digest reading and separate polling, not adds to it. Existing
-digests/mirrors (e.g. `dev/agent-answers.md`) remain searchable history. If the helper
-is unavailable, scan project-matching request/submission files and read only relevant
-records. The contract is `{{DATA_DIR}}\PROTOCOL.md`; read its question schema before
-first filing, or section 6 / helper `--help` when first acting on a submission.
+This one check replaces reading answer digests and polling separately. Digests and in-repo
+mirrors stay searchable history. If the helper is unavailable, scan this project's card files
+under `{{DATA_DIR}}/requests/` and `{{DATA_DIR}}/submissions/` and read only the relevant ones.
+The contract is `{{DATA_DIR}}/PROTOCOL.md`: read its card structure, schema, and filing rules
+(sections 1–3) before filing your first card, and section 6 or `agent.js --help` before acting on a card from the operator.
 
 ## Workflow
 
-1. **Check once, then stay scoped.** Owners repeat at existing next-increment/handoff
-   checkpoints. Workers handle their assigned answers and forward other relevant needs;
-   they do not discover new portfolio work. Unassigned previews are routing-only for owners.
-   A submitting operator authorizes checking/routing; implementation follows the message
-   and existing ownership/scope rules. No new agent is automatically launched.
-2. **File one JSON file per decision** into `{{DATA_DIR}}\requests\`,
-   following PROTOCOL.md's schema exactly (id format, `status: "open"`, `answer: null`).
-3. **Separate the request from supporting technical details.** Put the question or
-   operator action in `ask`, shared context in `background`, and each option's effect
-   and cost in its `description`. Put supporting file paths, symbols, decision references,
-   and implementation notes in `technical_context`.
-4. **For submissions**, claim with the helper before acting; use its revision/token for
-   responses. Check original text, later operator replies, and linked answers. Report
-   evidence and limits. Routing names an owner and reference, not completion. Link
-   human questions through `request_ids`. Promote durable work/decisions to existing repo
-   records; keep agent findings out of operator standing-answer digests.
-5. **Keep working**: set `blocking: true` honestly, then continue unblocked subtasks. Use a
-   clearly-labeled reversible placeholder if code needs a value before the answer arrives.
-6. **Consume by current status**, not a retained old answer. Include pending request IDs
-   in the next combined check. If returned, address `returned_reason` and reopen.
+1. **Check once, then stay scoped.** Owners check again at existing handoff and next-work
+   checkpoints. Workers handle cards for their assigned work and pass other relevant needs to
+   their owner; they do not look for new work. Unassigned card previews are for owners to
+   route. A card from the operator authorizes checking and routing; implementation follows
+   the card's message and the project's existing ownership and scope rules. Nothing launches
+   an agent automatically.
+2. **File one card per decision**: one JSON file in `{{DATA_DIR}}/requests/`, following
+   PROTOCOL.md's schema exactly (id format, `status: "open"`, `answer: null`).
+3. **Keep the card readable.** Put the question or operator action in `ask`, shared context
+   in `background`, and each option's effect and cost in its `description`. Put file paths,
+   symbols, decision references, and implementation notes in `technical_context`.
+4. **Claim a card from the operator before acting on it**, with the helper; use the revision
+   and token it returns for your response. Read the original message, later operator
+   replies, and linked answers. Report evidence and limits. Routing names an owner and a
+   reference; it is not completion. Link any card you file about it through `request_ids`.
+   Record durable work and decisions in the repo's existing records, and keep agent findings
+   out of the operator's answer digests.
+5. **Keep working.** Set `blocking: true` only if you are truly stopped, and continue
+   unblocked subtasks. If code needs a value before the answer arrives, use a clearly
+   labeled, reversible placeholder.
+6. **Act on a card's current status**, not on an old answer it once had. Pass the ids of cards
+   you are waiting on to the next check. If a card comes back returned, address
+   `returned_reason` and reopen it.
 
 ## Don't
 
-- Don't decide product-taste calls yourself because the operator is away — file and proceed.
-- Don't leave decisions only in repo docs, code comments, or chat — they're invisible to
-  The operator's queue. (In-repo notes may *supplement* a filed request.)
-- Don't ask in chat what the inbox already answered.
+- Don't make product-taste calls yourself because the operator is away. File a card and
+  carry on.
+- Don't leave decisions only in repo docs, code comments, or chat; the operator never sees
+  them there. In-repo notes may supplement a card.
+- Don't ask in chat what a card has already answered.
