@@ -2,6 +2,14 @@
 
 **One place for agents to ask you—and for you to send questions and ideas back.**
 
+We work on multiple projects, at varying stages of development, and often our agents
+need to ask us to review, approve, test, or just be aware of something. Agent Inbox
+captures it all in one place, with clear next steps.
+
+Works with any coding agent that runs on your machine and can run shell commands. 
+Built-in setup for Claude Code and Codex. Others need a short snippet in AGENTS.md 
+or their own instructions file.
+
 Use **Send to agents** to capture a message without deciding whether it is a bug, an
 existing feature, or future work. Choose a project (or **Not sure**) and one of three
 priorities: **Address Now**, **Fit into planned work**, or **Keep for later**.
